@@ -1,4 +1,4 @@
-import { $, $$, toast, escapeHTML, shortURL } from './core.js';
+import { $, toast, escapeHTML, shortURL } from './core.js';
 import state from './state.js';
 
 let fixtures = [];
@@ -116,7 +116,6 @@ export function initLibrary(){
     inp.click();
   });
 
-  // Cross-page updates (GDTF add etc.)
   state.onMessage(msg=>{
     if(msg?.type==='lib:update'){
       fixtures = msg.payload||[];
