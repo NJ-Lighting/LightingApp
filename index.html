@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
@@ -60,7 +60,6 @@
   button:active{transform:translateY(1px)}
   .btn-primary{background:linear-gradient(180deg,#1d5fff,#2ea3ff); border-color:#2c7be5}
   .btn-ghost{background:transparent}
-  .btn-warn{background:linear-gradient(180deg,#d97706,#f59e0b); border-color:#b45309}
   .chips{display:flex; flex-wrap:wrap; gap:8px}
   .chip{border:1px solid var(--border); background:var(--chip); border-radius:999px; padding:8px 12px; font-size:.85rem}
   .table-wrap{overflow:auto; border:1px solid var(--border); border-radius:12px}
@@ -76,14 +75,10 @@
   th.sortable::after{
     content:''; position:absolute; right:8px; top:50%; transform:translateY(-50%);
     border-left:5px solid transparent; border-right:5px solid transparent;
-    border-top:6px solid #6b7280; opacity:.5; /* default (no sort) */
+    border-top:6px solid #6b7280; opacity:.5;
   }
-  th.sortable[aria-sort="ascending"]::after{
-    border-top:0; border-bottom:6px solid #e5e7eb; opacity:1;
-  }
-  th.sortable[aria-sort="descending"]::after{
-    border-top:6px solid #e5e7eb; opacity:1;
-  }
+  th.sortable[aria-sort="ascending"]::after{ border-top:0; border-bottom:6px solid #e5e7eb; opacity:1 }
+  th.sortable[aria-sort="descending"]::after{ border-top:6px solid #e5e7eb; opacity:1 }
 
   /* DIP grid */
   .toggles{display:flex; gap:10px; flex-wrap:wrap}
@@ -91,7 +86,7 @@
   .dip .num{font-size:.75rem; color:var(--muted)}
   .dip .value{font-size:.8rem}
 
-  /* Vertical DIP toggles (UP=ON, DOWN=OFF) */
+  /* Vertical DIP toggles */
   .dip .toggle{
     width:36px; height:68px; border-radius:10px; border:1px solid var(--border);
     background: linear-gradient(180deg, #0b131f, #09101b);
@@ -134,6 +129,24 @@
   .note{padding:10px; border:1px solid var(--border); background:#0b1424; border-radius:10px; font-size:.9rem}
   .muted{color:var(--muted)}
   .wrap-scroll{overflow:auto}
+
+  /* Typeahead component */
+  .typeahead{ position:relative }
+  .typeahead input{ width:100% }
+  .ta-list{
+    position:absolute; left:0; right:0; top:calc(100% + 6px);
+    background:#0c1320; border:1px solid var(--border); border-radius:12px;
+    box-shadow:var(--shadow); max-height:280px; overflow:auto; z-index:10; display:none;
+  }
+  .ta-item{
+    padding:10px 12px; cursor:pointer; border-bottom:1px solid #0f2036;
+    display:flex; gap:8px; align-items:center;
+  }
+  .ta-item:last-child{ border-bottom:none }
+  .ta-item[aria-selected="true"], .ta-item:hover{ background:#0f192c }
+  .ta-empty{ padding:10px 12px; color:var(--muted) }
+  .ta-tag{ font-size:.75rem; padding:2px 6px; border:1px solid var(--border); border-radius:999px; background:#0e2238 }
+  .ta-disabled{ opacity:.6; pointer-events:none }
 </style>
 </head>
 <body>
@@ -287,24 +300,28 @@
 
     <div class="note" id="gdtf-status">Not logged in.</div>
 
-    <div class="row" style="margin:12px 0">
+    <div class="row" style="margin:12px 0; align-items:flex-end">
       <button id="gdtf-getlist" class="btn-primary" disabled>Get List</button>
 
-      <div class="field" style="min-width:220px; max-width:320px">
-        <label for="gdtf-manu">Manufacturer</label>
-        <select id="gdtf-manu" disabled>
-          <option value="">All manufacturers</option>
-        </select>
+      <!-- Typeahead: Manufacturer -->
+      <div class="field" style="min-width:260px; max-width:360px">
+        <label for="gdtf-manu-input">Manufacturer</label>
+        <div class="typeahead" id="ta-manu">
+          <input id="gdtf-manu-input" placeholder="Type to search manufacturer…" autocomplete="off" disabled />
+          <div class="ta-list" id="gdtf-manu-list" role="listbox" aria-label="Manufacturer suggestions"></div>
+        </div>
       </div>
 
-      <div class="field" style="min-width:220px; max-width:360px">
-        <label for="gdtf-fixture">Fixture (after choosing manufacturer)</label>
-        <select id="gdtf-fixture" disabled>
-          <option value="">All fixtures</option>
-        </select>
+      <!-- Typeahead: Fixture (depends on manufacturer) -->
+      <div class="field" style="min-width:260px; max-width:420px">
+        <label for="gdtf-fixture-input">Fixture (pick manufacturer first)</label>
+        <div class="typeahead ta-disabled" id="ta-fixture">
+          <input id="gdtf-fixture-input" placeholder="Type to search fixture…" autocomplete="off" disabled />
+          <div class="ta-list" id="gdtf-fixture-list" role="listbox" aria-label="Fixture suggestions"></div>
+        </div>
       </div>
 
-      <span class="muted" id="gdtf-count" style="align-self:flex-end; padding:10px 4px 0 4px"></span>
+      <span class="muted" id="gdtf-count" style="padding:0 4px 6px 4px"></span>
     </div>
 
     <div class="wrap-scroll table-wrap">
@@ -406,7 +423,7 @@
 
   function calcAddressing({start, universe, footprint, quantity, gap, resetMode}){
     if(footprint > UNIVERSE_SIZE){
-      throw new Error('Footprint larger than 512 (universe size).');
+      throw new Error('Footprint larger dan 512 (universe size).');
     }
     const rows=[];
     let curA = clamp(start,1,UNIVERSE_SIZE);
@@ -542,7 +559,7 @@
     generate();
   })();
 
-  // ---------- DIP Switch (base=1, no 512 switch, no offset) ----------
+  // ---------- DIP Switch (base=1) ----------
   const dip = {
     address: $('#dip-address'),
     toggles: $('#dip-toggles'),
@@ -747,14 +764,20 @@
     logout: $('#gdtf-logout'),
     status: $('#gdtf-status'),
     getList: $('#gdtf-getlist'),
-    manuSel: $('#gdtf-manu'),
-    fixSel: $('#gdtf-fixture'),
+    manuInput: $('#gdtf-manu-input'),
+    manuList: $('#gdtf-manu-list'),
+    manuWrap: $('#ta-manu'),
+    fixInput: $('#gdtf-fixture-input'),
+    fixList: $('#gdtf-fixture-list'),
+    fixWrap: $('#ta-fixture'),
     count: $('#gdtf-count'),
     tbody: $('#gdtf-table tbody'),
     list: [],
     filtered: [],
-    index: { byManu: new Map(), fixturesByManu: new Map() },
-    sort: { key: null, dir: 'asc' }, // 'manufacturer' | 'fixture'
+    index: { byManu: new Map(), fixturesByManu: new Map(), manus: [] },
+    sort: { key: null, dir: 'asc' },
+    manuSelected: '',   // gekozen manufacturer (exact match)
+    fixSelected: '',    // gekozen fixture (exact match binnen manu)
     loggedIn: false
   };
 
@@ -795,10 +818,14 @@
     gdtf.tbody.innerHTML = '';
     gdtf.list = gdtf.filtered = [];
     gdtf.count.textContent = '';
-    gdtf.manuSel.innerHTML = `<option value="">All manufacturers</option>`;
-    gdtf.fixSel.innerHTML = `<option value="">All fixtures</option>`;
-    gdtf.manuSel.disabled = true;
-    gdtf.fixSel.disabled = true;
+    // reset typeahead UI
+    gdtf.manuInput.value = '';
+    gdtf.fixInput.value = '';
+    gdtf.manuInput.disabled = true;
+    gdtf.fixInput.disabled = true;
+    gdtf.fixWrap.classList.add('ta-disabled');
+    gdtf.manuSelected = '';
+    gdtf.fixSelected = '';
     resetSortHeaders();
     setGdtfStatus('Logged out (local).','info');
   }
@@ -825,21 +852,14 @@
       return sign * collator.compare(A, B);
     });
   }
-
   function updateSortHeaderUI(){
-    // reset all first
-    $$('#gdtf-table thead th.sortable').forEach(th=>{
-      th.setAttribute('aria-sort','none');
-    });
+    $$('#gdtf-table thead th.sortable').forEach(th=> th.setAttribute('aria-sort','none'));
     if(!gdtf.sort.key) return;
     const th = $(`#gdtf-table thead th.sortable[data-sort="${gdtf.sort.key}"]`);
     if(th) th.setAttribute('aria-sort', gdtf.sort.dir === 'asc' ? 'ascending' : 'descending');
   }
-
   function resetSortHeaders(){
-    gdtf.sort.key = null;
-    gdtf.sort.dir = 'asc';
-    updateSortHeaderUI();
+    gdtf.sort.key = null; gdtf.sort.dir = 'asc'; updateSortHeaderUI();
   }
 
   function renderGdtfTable(rows){
@@ -879,8 +899,8 @@
   }
 
   function buildIndexes(){
-    gdtf.index.byManu = new Map();         // manu -> [records]
-    gdtf.index.fixturesByManu = new Map(); // manu -> Set(fixtures)
+    gdtf.index.byManu = new Map();
+    gdtf.index.fixturesByManu = new Map();
     for(const rec of gdtf.list){
       const manu = (rec.manufacturer||'').trim();
       const fix = (rec.fixture||'').trim();
@@ -889,30 +909,20 @@
       if(!gdtf.index.fixturesByManu.has(manu)) gdtf.index.fixturesByManu.set(manu, new Set());
       if(fix) gdtf.index.fixturesByManu.get(manu).add(fix);
     }
-    const manus = Array.from(gdtf.index.byManu.keys()).filter(Boolean).sort((a,b)=>a.localeCompare(b));
-    gdtf.manuSel.innerHTML = `<option value="">All manufacturers</option>` + manus.map(m=>`<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
-    gdtf.manuSel.disabled = false;
-    gdtf.fixSel.innerHTML = `<option value="">All fixtures</option>`;
-    gdtf.fixSel.disabled = true;
+    gdtf.index.manus = Array.from(gdtf.index.byManu.keys()).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+
+    // enable typeahead inputs
+    gdtf.manuInput.disabled = false;
+    gdtf.fixInput.disabled = true;
+    gdtf.fixWrap.classList.add('ta-disabled');
   }
 
-  function populateFixturesForManufacturer(manu){
-    const set = gdtf.index.fixturesByManu.get(manu) || new Set();
-    const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
-    gdtf.fixSel.innerHTML = `<option value="">All fixtures</option>` + arr.map(f=>`<option value="${escapeHTML(f)}">${escapeHTML(f)}</option>`).join('');
-    gdtf.fixSel.disabled = false;
-  }
-
-  function applyManufacturerFixtureFilter(){
-    const manu = gdtf.manuSel.value || '';
-    const fix  = gdtf.fixSel.value  || '';
+  function filterRowsBySelections(){
     let rows = gdtf.list;
-    if(manu){
-      rows = rows.filter(r => (r.manufacturer||'') === manu);
-      if(fix){
-        rows = rows.filter(r => (r.fixture||'') === fix);
-      }
-    }
+    const m = gdtf.manuSelected;
+    const f = gdtf.fixSelected;
+    if(m) rows = rows.filter(r => (r.manufacturer||'') === m);
+    if(f) rows = rows.filter(r => (r.fixture||'') === f);
     gdtf.filtered = rows;
     renderGdtfTable(rows);
   }
@@ -969,9 +979,7 @@
       const blob = await res.blob();
       const row = gdtf.list.find(x=> String(x.rid)===String(rid));
       const fname = `${(row?.manufacturer||'Manuf').replace(/\W+/g,'_')}-${(row?.fixture||'Fixture').replace(/\W+/g,'_')}-${(row?.revision||'rev').replace(/\W+/g,'_')}-RID${rid}.gdtf`;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = fname;
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
       document.body.appendChild(a); a.click(); a.remove();
       toast('Downloaded GDTF','success');
     }catch(e){
@@ -979,36 +987,162 @@
     }
   }
 
-  // Bind GDTF UI
-  $('#gdtf-login').addEventListener('click', gdtfLogin);
-  $('#gdtf-logout').addEventListener('click', gdtfLogout);
-  $('#gdtf-getlist').addEventListener('click', gdtfGetList);
+  // -------- Typeahead component (generic) --------
+  function makeTypeahead({wrap, input, listEl, getItems, onChoose, placeholder='Type to search…'}){
+    let items = [];
+    let open = false;
+    let activeIndex = -1;
+    const MAX = 20;
+    input.setAttribute('autocomplete','off');
+    input.setAttribute('role','combobox');
+    input.setAttribute('aria-expanded','false');
+    input.placeholder = placeholder;
 
-  // Cascaded filters
-  $('#gdtf-manu').addEventListener('change', (e)=>{
-    const manu = e.target.value;
-    if(manu){
-      populateFixturesForManufacturer(manu);
-    }else{
-      gdtf.fixSel.innerHTML = `<option value="">All fixtures</option>`;
-      gdtf.fixSel.disabled = true;
+    function close(){
+      open=false; listEl.style.display='none'; input.setAttribute('aria-expanded','false'); activeIndex=-1;
     }
-    applyManufacturerFixtureFilter();
-  });
-  $('#gdtf-fixture').addEventListener('change', applyManufacturerFixtureFilter);
+    function openList(){ open=true; listEl.style.display='block'; input.setAttribute('aria-expanded','true'); }
+    function render(){
+      listEl.innerHTML='';
+      if(items.length===0){
+        const div = document.createElement('div'); div.className='ta-empty'; div.textContent='No matches';
+        listEl.appendChild(div); return;
+      }
+      items.forEach((txt,i)=>{
+        const div = document.createElement('div');
+        div.className='ta-item'; div.setAttribute('role','option'); div.dataset.index=i;
+        div.innerHTML = `<span>${escapeHTML(txt)}</span>`;
+        if(i===activeIndex) div.setAttribute('aria-selected','true');
+        div.addEventListener('mouseenter', ()=> { activeIndex=i; updateActive(); });
+        div.addEventListener('mousedown', (e)=> e.preventDefault());
+        div.addEventListener('click', ()=> choose(i));
+        listEl.appendChild(div);
+      });
+    }
+    function updateActive(){
+      $$('.ta-item', listEl).forEach((n,ix)=> n.setAttribute('aria-selected', ix===activeIndex ? 'true':'false'));
+      const el = listEl.querySelector(`.ta-item[data-index="${activeIndex}"]`);
+      if(el){ const r = el.getBoundingClientRect(); const p = listEl.getBoundingClientRect();
+        if(r.bottom > p.bottom) listEl.scrollTop += (r.bottom - p.bottom);
+        if(r.top < p.top) listEl.scrollTop -= (p.top - r.top);
+      }
+    }
+    function choose(i){
+      const val = items[i]; if(!val) return;
+      input.value = val; close(); onChoose(val);
+    }
+    function doFilter(){
+      const q = input.value.trim().toLowerCase();
+      const src = getItems();
+      // Prioritize startsWith, then includes
+      const starts = src.filter(s=> s.toLowerCase().startsWith(q));
+      const rest = src.filter(s=> !s.toLowerCase().startsWith(q) && s.toLowerCase().includes(q));
+      items = (q? starts.concat(rest) : src).slice(0, MAX);
+      openList(); activeIndex = items.length ? 0 : -1; render();
+    }
+
+    input.addEventListener('input', doFilter);
+    input.addEventListener('focus', ()=> { doFilter(); });
+    input.addEventListener('keydown', (e)=>{
+      if(!open){ if(e.key==='ArrowDown'){ doFilter(); e.preventDefault(); } return; }
+      if(e.key==='ArrowDown'){ activeIndex = Math.min(activeIndex+1, items.length-1); updateActive(); e.preventDefault(); }
+      else if(e.key==='ArrowUp'){ activeIndex = Math.max(activeIndex-1, 0); updateActive(); e.preventDefault(); }
+      else if(e.key==='Enter'){ if(activeIndex>=0){ choose(activeIndex); e.preventDefault(); } }
+      else if(e.key==='Escape'){ close(); }
+    });
+    document.addEventListener('click', (e)=>{ if(!wrap.contains(e.target)) close(); });
+
+    return { refresh: doFilter, close };
+  }
+
+  // Build & bind typeaheads
+  let taManu, taFix;
+
+  function onChooseManufacturer(val){
+    gdtf.manuSelected = val;
+    gdtf.fixSelected = '';
+    gdtf.fixInput.value = '';
+    // Enable fixture typeahead with fixtures of selected manufacturer
+    gdtf.fixInput.disabled = false;
+    gdtf.fixWrap.classList.remove('ta-disabled');
+    filterRowsBySelections();
+    if(taFix) taFix.refresh();
+  }
+  function onChooseFixture(val){
+    gdtf.fixSelected = val;
+    filterRowsBySelections();
+  }
+
+  function setupTypeaheads(){
+    taManu = makeTypeahead({
+      wrap: gdtf.manuWrap,
+      input: gdtf.manuInput,
+      listEl: gdtf.manuList,
+      getItems: ()=> gdtf.index.manus,
+      onChoose: onChooseManufacturer,
+      placeholder: 'Type manufacturer…'
+    });
+    taFix = makeTypeahead({
+      wrap: gdtf.fixWrap,
+      input: gdtf.fixInput,
+      listEl: gdtf.fixList,
+      getItems: ()=>{
+        const m = gdtf.manuSelected;
+        if(!m) return [];
+        return Array.from(gdtf.index.fixturesByManu.get(m) || []).sort((a,b)=> a.localeCompare(b));
+      },
+      onChoose: onChooseFixture,
+      placeholder: 'Type fixture…'
+    });
+
+    // Live filtering without exact choose: when user types but niet Enter klikt,
+    // laat alvast resultaten zien op "contains".
+    gdtf.manuInput.addEventListener('input', ()=>{
+      gdtf.manuSelected = '';
+      gdtf.fixSelected = '';
+      gdtf.fixInput.value = '';
+      gdtf.fixInput.disabled = true;
+      gdtf.fixWrap.classList.add('ta-disabled');
+
+      const q = gdtf.manuInput.value.trim().toLowerCase();
+      if(!q){
+        gdtf.filtered = gdtf.list.slice();
+        renderGdtfTable(gdtf.filtered);
+        return;
+      }
+      // Filter op manufacturer contains
+      gdtf.filtered = gdtf.list.filter(r => (r.manufacturer||'').toLowerCase().includes(q));
+      renderGdtfTable(gdtf.filtered);
+    });
+
+    gdtf.fixInput.addEventListener('input', ()=>{
+      gdtf.fixSelected = '';
+      const m = gdtf.manuSelected;
+      const q = gdtf.fixInput.value.trim().toLowerCase();
+      let rows = gdtf.list;
+      if(m) rows = rows.filter(r => (r.manufacturer||'') === m);
+      if(q) rows = rows.filter(r => (r.fixture||'').toLowerCase().includes(q));
+      gdtf.filtered = rows;
+      renderGdtfTable(rows);
+    });
+  }
 
   // Sort handlers
   $$('#gdtf-table thead th.sortable').forEach(th=>{
     th.addEventListener('click', ()=>{
-      const key = th.dataset.sort; // 'manufacturer' | 'fixture'
-      if(gdtf.sort.key === key){
-        gdtf.sort.dir = (gdtf.sort.dir === 'asc') ? 'desc' : 'asc';
-      }else{
-        gdtf.sort.key = key;
-        gdtf.sort.dir = 'asc';
-      }
+      const key = th.dataset.sort;
+      if(gdtf.sort.key === key){ gdtf.sort.dir = (gdtf.sort.dir === 'asc') ? 'desc' : 'asc'; }
+      else{ gdtf.sort.key = key; gdtf.sort.dir = 'asc'; }
       renderGdtfTable(gdtf.filtered);
     });
+  });
+
+  // Actions
+  $('#gdtf-login').addEventListener('click', gdtfLogin);
+  $('#gdtf-logout').addEventListener('click', gdtfLogout);
+  $('#gdtf-getlist').addEventListener('click', async ()=>{
+    await gdtfGetList();
+    setupTypeaheads(); // init typeaheads once we have data
   });
 
   // Table actions
@@ -1048,7 +1182,7 @@
     if(e.key==='c' || e.key==='C') $('#addr-copy').click();
   });
 
-  // Utilities used across modules
+  // Utilities
   function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
   function shortURL(u){ try{ const {host,pathname} = new URL(u); return host + pathname.replace(/\/$/,''); }catch{return u} }
 
@@ -1056,4 +1190,3 @@
 </script>
 </body>
 </html>
-
