@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>LightingApp – DIP-Switch</title>
+  <meta name="theme-color" content="#0b0f15" />
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <main class="app" id="app">
+    <section class="card">
+      <h2>DIP-Switch Calculator</h2>
+      <div class="row">
+        <div class="field"><label for="dip-address">DMX Address (1–512)</label><input id="dip-address" type="number" min="1" max="512" value="1" /></div>
+        <div class="field"><label>&nbsp;</label><div class="row"><button class="btn-primary" id="dip-apply">Apply</button><button class="btn-ghost" id="dip-clear">Clear</button></div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="toggles" id="dip-toggles" aria-label="DIP switches"></div>
+      <div class="chips" style="margin-top:8px">
+        <span class="chip">Switch values: 1,2,4,8,16,32,64,128,256</span>
+        <span class="chip">Edit switches directly of typ adres</span>
+      </div>
+    </section>
+  </main>
+  <script type="module">
+    import { renderHeader } from './assets/nav.js';
+    import { initDip } from './assets/dip.js';
+    renderHeader('dip');
+    initDip();
+  </script>
+</body>
+</html>
