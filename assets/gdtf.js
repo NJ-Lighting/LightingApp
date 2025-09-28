@@ -22,10 +22,19 @@ function normalizeModes(modes){
 }
 
 let g = {
-  loggedIn:false, list:[], filtered:[],
-  index: { byManu:new Map(), fixturesByManu:new Map(), manus:[], globalFixtures:[] },
+  loggedIn:false,
+  list:[],          // volledige lijst
+  filtered:[],      // na filters
+  index: {
+    byManu:new Map(),
+    fixturesByManu:new Map(),
+    manus:[],
+    globalFixtures:[]
+  },
   sort: { key:null, dir:'asc' },
-  manuSelected:'', fixSelected:''
+  manuSelected:'',
+  fixSelected:'',
+  alpha:'ALL'       // actieve A–Z filter (string 'ALL' of 'A'..'Z')
 };
 
 function buildIndexes(){
@@ -92,7 +101,7 @@ function renderTable(rows){
         <div class="row" style="gap:6px">
           <select data-rid="${rec.rid}" class="gdtf-modepick">
             <option value="">Pick mode…</option>
-            ${modes.map((md,i)=> `<option value="${i}">${md.name||'Mode'} • ${md.dmxfootprint??'?'}ch</option>`).join('')}
+            ${modes.map((md,i)=> `<option value="${i}">${escapeHTML(md.name||'Mode')} • ${md.dmxfootprint??'?'}ch</option>`).join('')}
           </select>
           <button data-act="add" data-rid="${rec.rid}">Add to Library</button>
           <button data-act="dl" data-rid="${rec.rid}">Download</button>
@@ -106,13 +115,61 @@ function renderTable(rows){
   updateSortHeaderUI();
 }
 
-function filterBySelections(){
+function passAlpha(val){
+  if(g.alpha==='ALL') return true;
+  if(!val) return false;
+  return val.trim().toUpperCase().startsWith(g.alpha);
+}
+
+function applyAllFilters(){
   let rows = g.list;
-  const m = g.manuSelected;
-  const f = g.fixSelected;
-  if(m) rows = rows.filter(r => (r.manufacturer||'') === m);
-  if(f) rows = rows.filter(r => (r.fixture||'') === f);
-  g.filtered = rows; renderTable(rows);
+
+  // manu/fixture selecties
+  if(g.manuSelected){
+    rows = rows.filter(r => (r.manufacturer||'') === g.manuSelected);
+  }
+  if(g.fixSelected){
+    rows = rows.filter(r => (r.fixture||'') === g.fixSelected);
+  }
+
+  // A–Z filter: als manufacturer gekozen is, filter op fixture; anders op manufacturer
+  if(g.alpha!=='ALL'){
+    if(g.manuSelected){
+      rows = rows.filter(r => passAlpha(r.fixture));
+    }else{
+      rows = rows.filter(r => passAlpha(r.manufacturer));
+    }
+  }
+
+  g.filtered = rows;
+  renderTable(rows);
+}
+
+function renderAlphaChips(){
+  const host = $('#gdtf-alpha');
+  const letters = ['ALL'].concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''));
+  host.innerHTML = '';
+  letters.forEach(ch=>{
+    const a = document.createElement('button');
+    a.className = 'chip';
+    a.type = 'button';
+    a.textContent = ch === 'ALL' ? 'All' : ch;
+    if(g.alpha===ch) a.style.outline = '2px solid var(--accent)';
+    a.addEventListener('click', ()=>{
+      g.alpha = ch;
+      renderAlphaChips();
+      applyAllFilters();
+    });
+    host.appendChild(a);
+  });
+}
+
+function enableSearchInputs(){
+  const manuInput = $('#gdtf-manu-input');
+  const fixInput  = $('#gdtf-fixture-input');
+  manuInput.disabled = false;
+  fixInput.disabled  = false;
+  $('#ta-fixture')?.classList.remove('ta-disabled');
 }
 
 function setupTypeaheads(){
@@ -121,7 +178,7 @@ function setupTypeaheads(){
   const fixInput = $('#gdtf-fixture-input');
   const fixList = $('#gdtf-fixture-list');
 
-  function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placeholder}){
+  const makeTypeahead = ({input, listEl, getItems, onChoose, renderItem, placeholder})=>{
     let items=[]; let open=false; let activeIndex=-1; const MAX=20;
     input.setAttribute('autocomplete','off');
     input.setAttribute('role','combobox');
@@ -153,10 +210,10 @@ function setupTypeaheads(){
       }
     }
     function choose(i){ const val = items[i]; if(!val) return; onChoose(val, input, close); }
+    function toStr(it){ return typeof it==='string' ? it : (it.label || it.value || ''); }
     function doFilter(){
       const q = input.value.trim().toLowerCase();
       const src = getItems();
-      const toStr = (it)=> typeof it==='string' ? it : (it.label || it.value || '');
       const starts = src.filter(s=> toStr(s).toLowerCase().startsWith(q));
       const rest   = src.filter(s=> !toStr(s).toLowerCase().startsWith(q) && toStr(s).toLowerCase().includes(q));
       items = (q? starts.concat(rest) : src).slice(0, MAX);
@@ -173,12 +230,17 @@ function setupTypeaheads(){
     });
     document.addEventListener('click', (e)=>{ if(!listEl.parentElement.contains(e.target)) close(); });
     return { refresh: doFilter, close };
-  }
+  };
 
   const taManu = makeTypeahead({
     input: manuInput, listEl: manuList,
     getItems: ()=> g.index.manus,
-    onChoose: (val, input, close)=>{ g.manuSelected = (typeof val==='string')? val : val.value; input.value = g.manuSelected; g.fixSelected=''; $('#gdtf-fixture-input').value=''; filterBySelections(); close(); },
+    onChoose: (val, input, close)=>{
+      g.manuSelected = (typeof val==='string')? val : val.value;
+      input.value = g.manuSelected;
+      g.fixSelected=''; $('#gdtf-fixture-input').value='';
+      applyAllFilters(); close();
+    },
     placeholder: 'Type manufacturer…'
   });
 
@@ -191,22 +253,28 @@ function setupTypeaheads(){
         return g.index.globalFixtures.map(it=> ({ value: it.fixture, meta:{manufacturer:it.manufacturer}, label:`${it.fixture} — ${it.manufacturer}` }));
       }
     },
-    renderItem: (it)=> typeof it==='string' ? `<span>${escapeHTML(it)}</span>` : `<span>${escapeHTML(it.value)}</span><span class="ta-tag">${escapeHTML(it.meta.manufacturer)}</span>`,
+    renderItem: (it)=> typeof it==='string'
+      ? `<span>${escapeHTML(it)}</span>`
+      : `<span>${escapeHTML(it.value)}</span><span class="ta-tag">${escapeHTML(it.meta.manufacturer)}</span>`,
     onChoose: (val, input, close)=>{
       if(typeof val==='string'){ g.fixSelected = val; }
       else { g.fixSelected = val.value; g.manuSelected = val.meta?.manufacturer || g.manuSelected; $('#gdtf-manu-input').value = g.manuSelected; }
-      input.value = g.fixSelected; filterBySelections(); close();
+      input.value = g.fixSelected;
+      applyAllFilters(); close();
     },
     placeholder: 'Type fixture…'
   });
 
+  // Live filtering tijdens typen
   manuInput.addEventListener('input', ()=>{
     g.manuSelected = '';
     g.fixSelected = '';
     const q = manuInput.value.trim().toLowerCase();
     let rows = g.list;
     if(q) rows = rows.filter(r => (r.manufacturer||'').toLowerCase().includes(q));
-    g.filtered = rows; renderTable(rows); taFix.refresh();
+    g.filtered = rows;
+    renderTable(rows);
+    taFix.refresh();
   });
 
   fixInput.addEventListener('input', ()=>{
@@ -215,7 +283,8 @@ function setupTypeaheads(){
     let rows = g.list;
     if(g.manuSelected){ rows = rows.filter(r => (r.manufacturer||'') === g.manuSelected); }
     if(q){ rows = rows.filter(r => (r.fixture||'').toLowerCase().includes(q)); }
-    g.filtered = rows; renderTable(rows);
+    g.filtered = rows;
+    renderTable(rows);
   });
 }
 
@@ -239,22 +308,43 @@ async function login(){
 }
 
 function logout(){
-  g.loggedIn=false; $('#gdtf-getlist').disabled = true; $('#gdtf-table tbody').innerHTML='';
-  g.list=g.filtered=[]; $('#gdtf-count').textContent='';
-  $('#gdtf-manu-input').value=''; $('#gdtf-fixture-input').value=''; setStatus('Logged out (local).','info');
+  g.loggedIn=false;
+  $('#gdtf-getlist').disabled = true;
+  $('#gdtf-table tbody').innerHTML='';
+  g.list=g.filtered=[];
+  $('#gdtf-count').textContent='';
+  $('#gdtf-manu-input').value='';
+  $('#gdtf-fixture-input').value='';
+  g.manuSelected=''; g.fixSelected='';
+  g.alpha='ALL';
+  renderAlphaChips();
+  setStatus('Logged out (local).','info');
 }
 
 async function getList(){
   try{
     setStatus('Fetching revision list…');
     const res = await fetch(`${GDTF_BASE}/getList`, {credentials:'include'});
-    if(!res.ok){ const t = await res.text().catch(()=> ''); setStatus(`Get List failed (${res.status}). ${t||''}`.trim(),'err'); return; }
+    if(!res.ok){
+      const t = await res.text().catch(()=> '');
+      setStatus(`Get List failed (${res.status}). ${t||''}`.trim(),'err'); return;
+    }
     const data = await res.json().catch(()=> null);
     if(!data?.result){ setStatus(data?.error || 'Get List returned error.','err'); return; }
+
     g.list = Array.isArray(data.list)? data.list : [];
     setStatus(`Got ${g.list.length} revisions. Timestamp: ${data.timestamp||''}`,'ok');
-    buildIndexes(); g.filtered = g.list.slice(); renderTable(g.filtered); setupTypeaheads();
-  }catch{ setStatus('Get List error.','warn'); }
+
+    buildIndexes();
+    enableSearchInputs();       // <<< belangrijk: inputs aanzetten
+    setupTypeaheads();          // zoekbalken initialiseren
+    g.filtered = g.list.slice();
+    g.alpha = 'ALL';
+    renderAlphaChips();         // A–Z balk tekenen
+    renderTable(g.filtered);
+  }catch{
+    setStatus('Get List error.','warn');
+  }
 }
 
 function addSelectedModeToLibrary(rid){
@@ -297,10 +387,12 @@ async function downloadGdtf(rid){
 }
 
 export function initGdtf(){
+  // Actions
   $('#gdtf-login').addEventListener('click', login);
   $('#gdtf-logout').addEventListener('click', logout);
   $('#gdtf-getlist').addEventListener('click', getList);
 
+  // Sortering op headers
   $$('#gdtf-table thead th.sortable').forEach(th=>{
     th.addEventListener('click', ()=>{
       const key = th.dataset.sort;
@@ -310,6 +402,7 @@ export function initGdtf(){
     });
   });
 
+  // Table actions (Add / Download)
   $('#gdtf-table').addEventListener('click', (e)=>{
     const btn = e.target.closest('button'); if(!btn) return;
     const rid = btn.dataset.rid;
