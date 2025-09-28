@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>LightingApp – About</title>
+  <meta name="theme-color" content="#0b0f15" />
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <main class="app" id="app">
+    <section class="card">
+      <h2>About & Shortcuts</h2>
+      <p class="hint">Built for mobile/tablet field use. Data is stored locally (localStorage). GDTF Share session uses cookies that expire after ~2 hours.</p>
+      <div class="chips" style="margin-top:8px">
+        <span class="chip"><strong>Bulk:</strong> <span class="kbd">G</span> generate, <span class="kbd">E</span> export, <span class="kbd">C</span> copy</span>
+        <span class="chip"><strong>Nav:</strong> Tabs bovenin of ga direct naar <a href="addressing.html">1</a>, <a href="dip.html">2</a>, <a href="library.html">3</a>, <a href="gdtf.html">4</a></span>
+      </div>
+    </section>
+  </main>
+  <script type="module">
+    import { renderHeader } from './assets/nav.js';
+    renderHeader('about');
+  </script>
+</body>
+</html>
