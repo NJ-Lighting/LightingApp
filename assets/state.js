@@ -1,4 +1,4 @@
-/const CH = new BroadcastChannel('lightingapp');
+const CH = new BroadcastChannel('lightingapp');
 const LS = window.localStorage;
 
 const KEYS = {
@@ -9,7 +9,10 @@ const KEYS = {
 
 export const state = {
   getAddr(){ try{ return JSON.parse(LS.getItem(KEYS.addr)||'{}'); }catch{ return {}; } },
-  setAddr(obj){ LS.setItem(KEYS.addr, JSON.stringify(obj||{})); CH.postMessage({type:'addr:update', payload:obj}); },
+  setAddr(obj){
+    LS.setItem(KEYS.addr, JSON.stringify(obj||{}));
+    CH.postMessage({type:'addr:update', payload:obj});
+  },
 
   getLibrary(){
     try{
@@ -35,7 +38,11 @@ export const state = {
   },
 
   getDip(){ const v = Number(LS.getItem(KEYS.dip)); return (v>=1 && v<=512) ? v : 1; },
-  setDip(v){ const a = Math.max(1, Math.min(512, Number(v)||1)); LS.setItem(KEYS.dip, String(a)); CH.postMessage({type:'dip:update', payload:a}); },
+  setDip(v){
+    const a = Math.max(1, Math.min(512, Number(v)||1));
+    LS.setItem(KEYS.dip, String(a));
+    CH.postMessage({type:'dip:update', payload:a});
+  },
 
   onMessage(fn){ CH.addEventListener('message', (e)=> fn(e.data)); },
 };
