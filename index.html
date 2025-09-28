@@ -130,7 +130,7 @@
   .muted{color:var(--muted)}
   .wrap-scroll{overflow:auto}
 
-  /* Typeahead component */
+  /* Typeahead */
   .typeahead{ position:relative }
   .typeahead input{ width:100% }
   .ta-list{
@@ -140,7 +140,7 @@
   }
   .ta-item{
     padding:10px 12px; cursor:pointer; border-bottom:1px solid #0f2036;
-    display:flex; gap:8px; align-items:center;
+    display:flex; gap:8px; align-items:center; justify-content:space-between;
   }
   .ta-item:last-child{ border-bottom:none }
   .ta-item[aria-selected="true"], .ta-item:hover{ background:#0f192c }
@@ -256,7 +256,7 @@
 
     <div class="chips" style="margin-top:8px">
       <span class="chip">Switch values: 1,2,4,8,16,32,64,128,256</span>
-      <span class="chip">Edit switches directly or type address</span>
+      <span class="chip">Edit switches directly of typ adres</span>
     </div>
   </section>
 
@@ -274,7 +274,7 @@
     </div>
 
     <div class="list" id="lib-list"></div>
-    <div class="item" id="lib-empty" hidden>No fixtures yet. Add one or import a JSON file.</div>
+    <div class="item" id="lib-empty" hidden>No fixtures yet. Add one of import JSON.</div>
   </section>
 
   <!-- GDTF SHARE -->
@@ -307,16 +307,16 @@
       <div class="field" style="min-width:260px; max-width:360px">
         <label for="gdtf-manu-input">Manufacturer</label>
         <div class="typeahead" id="ta-manu">
-          <input id="gdtf-manu-input" placeholder="Type to search manufacturer…" autocomplete="off" disabled />
+          <input id="gdtf-manu-input" placeholder="Type manufacturer…" autocomplete="off" disabled />
           <div class="ta-list" id="gdtf-manu-list" role="listbox" aria-label="Manufacturer suggestions"></div>
         </div>
       </div>
 
-      <!-- Typeahead: Fixture (depends on manufacturer) -->
+      <!-- Typeahead: Fixture (global of binnen manufacturer) -->
       <div class="field" style="min-width:260px; max-width:420px">
-        <label for="gdtf-fixture-input">Fixture (pick manufacturer first)</label>
+        <label for="gdtf-fixture-input">Fixture</label>
         <div class="typeahead ta-disabled" id="ta-fixture">
-          <input id="gdtf-fixture-input" placeholder="Type to search fixture…" autocomplete="off" disabled />
+          <input id="gdtf-fixture-input" placeholder="Type fixture… (kan ook zonder manufacturer)" autocomplete="off" disabled />
           <div class="ta-list" id="gdtf-fixture-list" role="listbox" aria-label="Fixture suggestions"></div>
         </div>
       </div>
@@ -423,7 +423,7 @@
 
   function calcAddressing({start, universe, footprint, quantity, gap, resetMode}){
     if(footprint > UNIVERSE_SIZE){
-      throw new Error('Footprint larger dan 512 (universe size).');
+      throw new Error('Footprint groter dan 512 (universe size).');
     }
     const rows=[];
     let curA = clamp(start,1,UNIVERSE_SIZE);
@@ -764,20 +764,24 @@
     logout: $('#gdtf-logout'),
     status: $('#gdtf-status'),
     getList: $('#gdtf-getlist'),
+
     manuInput: $('#gdtf-manu-input'),
     manuList: $('#gdtf-manu-list'),
     manuWrap: $('#ta-manu'),
+
     fixInput: $('#gdtf-fixture-input'),
     fixList: $('#gdtf-fixture-list'),
     fixWrap: $('#ta-fixture'),
+
     count: $('#gdtf-count'),
     tbody: $('#gdtf-table tbody'),
+
     list: [],
     filtered: [],
-    index: { byManu: new Map(), fixturesByManu: new Map(), manus: [] },
+    index: { byManu: new Map(), fixturesByManu: new Map(), manus: [], globalFixtures: [] /* [{fixture, manufacturer}] */ },
     sort: { key: null, dir: 'asc' },
-    manuSelected: '',   // gekozen manufacturer (exact match)
-    fixSelected: '',    // gekozen fixture (exact match binnen manu)
+    manuSelected: '',   // exact manufacturer
+    fixSelected: '',    // exact fixture (within manu if set)
     loggedIn: false
   };
 
@@ -901,20 +905,30 @@
   function buildIndexes(){
     gdtf.index.byManu = new Map();
     gdtf.index.fixturesByManu = new Map();
+
+    // Build per-manufacturer and global fixture index
+    const globalSet = new Set(); // key: fixture|||manufacturer
     for(const rec of gdtf.list){
       const manu = (rec.manufacturer||'').trim();
       const fix = (rec.fixture||'').trim();
       if(!gdtf.index.byManu.has(manu)) gdtf.index.byManu.set(manu, []);
       gdtf.index.byManu.get(manu).push(rec);
       if(!gdtf.index.fixturesByManu.has(manu)) gdtf.index.fixturesByManu.set(manu, new Set());
-      if(fix) gdtf.index.fixturesByManu.get(manu).add(fix);
+      if(fix) {
+        gdtf.index.fixturesByManu.get(manu).add(fix);
+        globalSet.add(`${fix}|||${manu}`);
+      }
     }
     gdtf.index.manus = Array.from(gdtf.index.byManu.keys()).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+    gdtf.index.globalFixtures = Array.from(globalSet).map(key=>{
+      const [fixture, manufacturer] = key.split('|||');
+      return { fixture, manufacturer };
+    }).sort((a,b)=> (a.fixture+a.manufacturer).localeCompare(b.fixture+b.manufacturer));
 
     // enable typeahead inputs
     gdtf.manuInput.disabled = false;
-    gdtf.fixInput.disabled = true;
-    gdtf.fixWrap.classList.add('ta-disabled');
+    gdtf.fixInput.disabled = false;           // nu ook globaal zoeken mogelijk
+    gdtf.fixWrap.classList.remove('ta-disabled');
   }
 
   function filterRowsBySelections(){
@@ -988,7 +1002,7 @@
   }
 
   // -------- Typeahead component (generic) --------
-  function makeTypeahead({wrap, input, listEl, getItems, onChoose, placeholder='Type to search…'}){
+  function makeTypeahead({wrap, input, listEl, getItems, onChoose, renderItem, placeholder='Type to search…'}){
     let items = [];
     let open = false;
     let activeIndex = -1;
@@ -1008,10 +1022,10 @@
         const div = document.createElement('div'); div.className='ta-empty'; div.textContent='No matches';
         listEl.appendChild(div); return;
       }
-      items.forEach((txt,i)=>{
+      items.forEach((it,i)=>{
         const div = document.createElement('div');
         div.className='ta-item'; div.setAttribute('role','option'); div.dataset.index=i;
-        div.innerHTML = `<span>${escapeHTML(txt)}</span>`;
+        div.innerHTML = renderItem ? renderItem(it) : `<span>${escapeHTML(String(it))}</span>`;
         if(i===activeIndex) div.setAttribute('aria-selected','true');
         div.addEventListener('mouseenter', ()=> { activeIndex=i; updateActive(); });
         div.addEventListener('mousedown', (e)=> e.preventDefault());
@@ -1029,14 +1043,15 @@
     }
     function choose(i){
       const val = items[i]; if(!val) return;
-      input.value = val; close(); onChoose(val);
+      onChoose(val, input, close);
     }
     function doFilter(){
       const q = input.value.trim().toLowerCase();
       const src = getItems();
-      // Prioritize startsWith, then includes
-      const starts = src.filter(s=> s.toLowerCase().startsWith(q));
-      const rest = src.filter(s=> !s.toLowerCase().startsWith(q) && s.toLowerCase().includes(q));
+      // normalize to array of items
+      const toStr = (it)=> typeof it==='string' ? it : (it.label || it.value || '');
+      const starts = src.filter(s=> toStr(s).toLowerCase().startsWith(q));
+      const rest = src.filter(s=> !toStr(s).toLowerCase().startsWith(q) && toStr(s).toLowerCase().includes(q));
       items = (q? starts.concat(rest) : src).slice(0, MAX);
       openList(); activeIndex = items.length ? 0 : -1; render();
     }
@@ -1055,21 +1070,30 @@
     return { refresh: doFilter, close };
   }
 
-  // Build & bind typeaheads
+  // Build indexes & typeaheads
   let taManu, taFix;
 
   function onChooseManufacturer(val){
-    gdtf.manuSelected = val;
+    gdtf.manuSelected = typeof val === 'string' ? val : val.value;
+    gdtf.manuInput.value = gdtf.manuSelected;
     gdtf.fixSelected = '';
     gdtf.fixInput.value = '';
-    // Enable fixture typeahead with fixtures of selected manufacturer
-    gdtf.fixInput.disabled = false;
-    gdtf.fixWrap.classList.remove('ta-disabled');
     filterRowsBySelections();
     if(taFix) taFix.refresh();
   }
+
   function onChooseFixture(val){
-    gdtf.fixSelected = val;
+    // val can be {value:'fixture', meta:{manufacturer:'...'}} or string when manuSelected exists
+    if(typeof val === 'string'){
+      gdtf.fixSelected = val;
+    }else{
+      const fx = val.value;
+      const m  = val.meta?.manufacturer || '';
+      gdtf.fixSelected = fx;
+      gdtf.manuSelected = m || gdtf.manuSelected;
+      gdtf.manuInput.value = gdtf.manuSelected;
+      gdtf.fixInput.value = fx;
+    }
     filterRowsBySelections();
   }
 
@@ -1079,49 +1103,56 @@
       input: gdtf.manuInput,
       listEl: gdtf.manuList,
       getItems: ()=> gdtf.index.manus,
-      onChoose: onChooseManufacturer,
+      onChoose: (val, input, close)=>{ onChooseManufacturer(val); close(); },
       placeholder: 'Type manufacturer…'
     });
+
     taFix = makeTypeahead({
       wrap: gdtf.fixWrap,
       input: gdtf.fixInput,
       listEl: gdtf.fixList,
       getItems: ()=>{
-        const m = gdtf.manuSelected;
-        if(!m) return [];
-        return Array.from(gdtf.index.fixturesByManu.get(m) || []).sort((a,b)=> a.localeCompare(b));
+        if(gdtf.manuSelected){
+          return Array.from(gdtf.index.fixturesByManu.get(gdtf.manuSelected) || []).sort((a,b)=> a.localeCompare(b));
+        }else{
+          // global list: objects { value: fixture, meta: { manufacturer }, label: "Fixture — Manufacturer" }
+          return gdtf.index.globalFixtures.map(it=> ({
+            value: it.fixture,
+            meta: { manufacturer: it.manufacturer },
+            label: `${it.fixture} — ${it.manufacturer}`
+          }));
+        }
       },
-      onChoose: onChooseFixture,
+      renderItem: (it)=> {
+        if(typeof it === 'string') return `<span>${escapeHTML(it)}</span>`;
+        return `<span>${escapeHTML(it.value)}</span><span class="ta-tag">${escapeHTML(it.meta.manufacturer)}</span>`;
+      },
+      onChoose: (val, input, close)=>{ onChooseFixture(val); close(); },
       placeholder: 'Type fixture…'
     });
 
-    // Live filtering without exact choose: when user types but niet Enter klikt,
-    // laat alvast resultaten zien op "contains".
+    // Live filtering gedrag bij typen (zonder kiezen)
     gdtf.manuInput.addEventListener('input', ()=>{
       gdtf.manuSelected = '';
       gdtf.fixSelected = '';
-      gdtf.fixInput.value = '';
-      gdtf.fixInput.disabled = true;
-      gdtf.fixWrap.classList.add('ta-disabled');
-
       const q = gdtf.manuInput.value.trim().toLowerCase();
-      if(!q){
-        gdtf.filtered = gdtf.list.slice();
-        renderGdtfTable(gdtf.filtered);
-        return;
-      }
-      // Filter op manufacturer contains
-      gdtf.filtered = gdtf.list.filter(r => (r.manufacturer||'').toLowerCase().includes(q));
-      renderGdtfTable(gdtf.filtered);
+      let rows = gdtf.list;
+      if(q) rows = rows.filter(r => (r.manufacturer||'').toLowerCase().includes(q));
+      gdtf.filtered = rows;
+      renderGdtfTable(rows);
+      taFix.refresh();
     });
 
     gdtf.fixInput.addEventListener('input', ()=>{
       gdtf.fixSelected = '';
-      const m = gdtf.manuSelected;
       const q = gdtf.fixInput.value.trim().toLowerCase();
       let rows = gdtf.list;
-      if(m) rows = rows.filter(r => (r.manufacturer||'') === m);
-      if(q) rows = rows.filter(r => (r.fixture||'').toLowerCase().includes(q));
+      if(gdtf.manuSelected){
+        rows = rows.filter(r => (r.manufacturer||'') === gdtf.manuSelected);
+      }
+      if(q){
+        rows = rows.filter(r => (r.fixture||'').toLowerCase().includes(q));
+      }
       gdtf.filtered = rows;
       renderGdtfTable(rows);
     });
@@ -1142,7 +1173,7 @@
   $('#gdtf-logout').addEventListener('click', gdtfLogout);
   $('#gdtf-getlist').addEventListener('click', async ()=>{
     await gdtfGetList();
-    setupTypeaheads(); // init typeaheads once we have data
+    setupTypeaheads();
   });
 
   // Table actions
