@@ -75,7 +75,7 @@ th.sortable::after{
 th.sortable[aria-sort="ascending"]::after{ border-top:0; border-bottom:6px solid #e5e7eb; opacity:1 }
 th.sortable[aria-sort="descending"]::after{ border-top:6px solid #e5e7eb; opacity:1 }
 
-/* DIP grid */
+/* DIP */
 .toggles{display:flex; gap:10px; flex-wrap:wrap}
 .dip{display:grid; grid-template-rows: auto auto auto; gap:4px; align-items:center; justify-items:center; width:64px}
 .dip .num{font-size:.75rem; color:var(--muted)}
@@ -101,7 +101,7 @@ th.sortable[aria-sort="descending"]::after{ border-top:6px solid #e5e7eb; opacit
 .dip .toggle input:checked ~ .legend.on{ opacity:1 } .dip .toggle input:checked ~ .legend.off{ opacity:.25 }
 .dip .toggle input:not(:checked) ~ .legend.off{ opacity:1 } .dip .toggle input:not(:checked) ~ .legend.on{ opacity:.25 }
 
-/* Universe color coding */
+/* Universe kleur */
 tr[data-uni] td{ background: var(--uni-bg); transition: background .2s ease }
 tr[data-uni]{ border-left: 4px solid var(--uni-border) }
 .uni-cell{ display:flex; align-items:center; gap:8px }
