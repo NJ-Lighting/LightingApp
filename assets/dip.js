@@ -1,4 +1,4 @@
-import { $, toast } from './core.js';
+import { $ } from './core.js';
 import state from './state.js';
 
 const DIP_VALUES = [1,2,4,8,16,32,64,128,256];
@@ -40,7 +40,7 @@ function switchesValue(toggles){
     const input = toggles.querySelector(`#sw-${v}`);
     if(input.checked) mask |= v;
   });
-  return (mask & 0x1FF) + 1; // 1..512
+  return (mask & 0x1FF) + 1;
 }
 
 let els;
@@ -83,11 +83,9 @@ export function initDip(){
   });
   els.address.addEventListener('input', syncFromAddress);
 
-  // restore last
   els.address.value = state.getDip();
   syncFromAddress();
 
-  // listen cross-page updates
   state.onMessage(msg=>{
     if(msg?.type==='dip:update'){
       const v = msg.payload;
