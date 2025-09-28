@@ -1,6 +1,6 @@
 import { $ } from './core.js';
 
-export function renderHeader(active='addr'){
+export function renderHeader(active){
   const tabs = [
     {id:'addr',  href:'addressing.html', label:'Bulk Addressing'},
     {id:'dip',   href:'dip.html',        label:'DIP-Switch'},
