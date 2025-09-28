@@ -11,16 +11,31 @@
   <main class="app" id="app">
     <section class="card">
       <h2>GDTF Share</h2>
+
       <div class="row" style="margin-bottom:10px">
-        <div class="field"><label>Username</label><input id="gdtf-user" placeholder="GDTF Share username" autocomplete="username" /></div>
-        <div class="field"><label>Password</label><input id="gdtf-pass" type="password" placeholder="••••••••" autocomplete="current-password" /></div>
-        <div class="field" style="max-width:260px"><label>&nbsp;</label><div class="row"><button class="btn-primary" id="gdtf-login">Login</button><button class="btn-ghost" id="gdtf-logout">Logout</button></div></div>
+        <div class="field">
+          <label>Username</label>
+          <input id="gdtf-user" placeholder="GDTF Share username" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="gdtf-pass" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="field" style="max-width:260px">
+          <label>&nbsp;</label>
+          <div class="row">
+            <button class="btn-primary" id="gdtf-login">Login</button>
+            <button class="btn-ghost" id="gdtf-logout">Logout</button>
+          </div>
+        </div>
       </div>
+
       <div class="note" id="gdtf-status">Not logged in.</div>
 
       <div class="row" style="margin:12px 0; align-items:flex-end">
         <button id="gdtf-getlist" class="btn-primary" disabled>Get List</button>
 
+        <!-- Manufacturer -->
         <div class="field" style="min-width:260px; max-width:360px">
           <label for="gdtf-manu-input">Manufacturer</label>
           <div class="typeahead" id="ta-manu">
@@ -29,16 +44,20 @@
           </div>
         </div>
 
+        <!-- Fixture -->
         <div class="field" style="min-width:260px; max-width:420px">
           <label for="gdtf-fixture-input">Fixture</label>
           <div class="typeahead ta-disabled" id="ta-fixture">
-            <input id="gdtf-fixture-input" placeholder="Type fixture… (kan ook zonder manufacturer)" autocomplete="off" disabled />
+            <input id="gdtf-fixture-input" placeholder="Type fixture… (mag ook zonder manufacturer)" autocomplete="off" disabled />
             <div class="ta-list" id="gdtf-fixture-list" role="listbox" aria-label="Fixture suggestions"></div>
           </div>
         </div>
 
         <span class="muted" id="gdtf-count" style="padding:0 4px 6px 4px"></span>
       </div>
+
+      <!-- A–Z filterchips -->
+      <div class="chips" id="gdtf-alpha" style="margin:6px 0 10px"></div>
 
       <div class="table-wrap">
         <table id="gdtf-table">
@@ -57,7 +76,9 @@
         </table>
       </div>
 
-      <p class="hint" style="margin-top:10px">Session cookie expires after ~2 hours — log in again if needed.</p>
+      <p class="hint" style="margin-top:10px">
+        Session cookie expires after ~2 hours — log in again if needed.
+      </p>
     </section>
   </main>
 
