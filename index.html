@@ -10,15 +10,26 @@
 <body>
   <main class="app" id="app">
     <section class="card">
-      <h2>Welkom</h2>
-      <p class="hint">Kies een tool hierboven. Je wordt automatisch doorgestuurd naar Bulk Addressing.</p>
+      <h2>Kies een tool</h2>
+      <p class="hint" style="margin-bottom:10px">Snel naar de juiste functie voor in het veld.</p>
+      <div class="row" style="gap:12px; flex-wrap:wrap">
+        <a class="tab" href="addressing.html">Bulk Addressing</a>
+        <a class="tab" href="dip.html">DIP-Switch</a>
+        <a class="tab" href="library.html">Fixture Library</a>
+        <a class="tab" href="gdtf.html">GDTF Share</a>
+        <a class="tab" href="about.html">About</a>
+      </div>
+      <div class="divider"></div>
+      <div class="chips">
+        <span class="chip">Mobile & tablet friendly</span>
+        <span class="chip">Alle data lokaal (localStorage)</span>
+        <span class="chip">GDTF via <code>/api/gdtf</code></span>
+      </div>
     </section>
   </main>
   <script type="module">
     import { renderHeader } from './assets/nav.js';
-    renderHeader('addr');
-    // simpele redirect zodat index je primaire entry is
-    setTimeout(()=> location.replace('addressing.html'), 400);
+    renderHeader(); // geen actieve tab op het startscherm
   </script>
 </body>
 </html>
