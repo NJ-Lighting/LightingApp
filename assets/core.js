@@ -1,4 +1,3 @@
-// Tiny DOM helpers
 export const $  = (sel, root=document) => root.querySelector(sel);
 export const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
 export const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
@@ -33,8 +32,6 @@ export function copyText(t){
 
 export function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 export function shortURL(u){ try{ const {host,pathname} = new URL(u); return host + pathname.replace(/\/$/,''); }catch{return u} }
-
-// keyboard shortcuts guard
 export function isFormFocused(){
   const el = document.activeElement;
   return el && ['INPUT','SELECT','TEXTAREA'].includes(el.tagName);
