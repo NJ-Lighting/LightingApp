@@ -1,7 +1,6 @@
 import { $, $$, toast, escapeHTML } from './core.js';
 import state from './state.js';
 
-// Adjust if you host a proxy; same path as before
 const GDTF_BASE = '/api/gdtf';
 
 function setStatus(msg, kind='info'){
@@ -275,7 +274,7 @@ function addSelectedModeToLibrary(rid){
     notes: `GDTF RID ${row.rid} • Version ${row.version||'-'}`
   };
   if(!rec.brand || !rec.model){ toast('Missing manufacturer/fixture in record','error'); return; }
-  state.addFixture(rec); // broadcast to others
+  state.addFixture(rec);
   toast('Added to Fixture Library','success');
 }
 
