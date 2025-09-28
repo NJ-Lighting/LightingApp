@@ -12,24 +12,53 @@
     <section class="card">
       <h2>Bulk Fixture Addressing</h2>
 
-      <!-- Nieuw: Fixture uit Library kiezen -->
+      <!-- Nieuw: Patch Plan opbouwen -->
       <div class="row" style="margin-bottom:6px">
         <div class="field" style="flex:2; min-width:280px">
-          <label for="addr-fixture-input">Fixture (from Library)</label>
+          <label for="addr-fixture-input">Add fixture (from Library)</label>
           <div class="typeahead" id="ta-addr-fixture">
             <input id="addr-fixture-input" placeholder="Search brand, model, mode…" autocomplete="off" />
             <div class="ta-list" id="addr-fixture-list" role="listbox" aria-label="Fixture suggestions"></div>
           </div>
-          <div class="hint" id="addr-fixture-hint">No selection</div>
+          <div class="hint">Kies een fixture en stel de hoeveelheid in. Klik daarna “Add to Plan”.</div>
         </div>
-        <div class="field" style="max-width:160px">
+        <div class="field" style="max-width:140px">
+          <label>Quantity</label>
+          <input id="addr-fixture-qty" type="number" min="1" value="1" />
+        </div>
+        <div class="field" style="max-width:180px">
           <label>&nbsp;</label>
           <div class="row">
-            <button class="btn-ghost" id="addr-fixture-clear">Clear</button>
+            <button class="btn-primary" id="addr-fixture-add">Add to Plan</button>
+            <button class="btn-ghost" id="addr-plan-clear">Clear Plan</button>
           </div>
         </div>
       </div>
 
+      <!-- Patch Plan lijst -->
+      <div class="table-wrap" id="addr-plan-wrap" style="margin:8px 0 12px; display:none">
+        <table id="addr-plan-table">
+          <thead>
+            <tr>
+              <th style="width:34px">#</th>
+              <th>Fixture</th>
+              <th>Mode</th>
+              <th style="width:100px">Footprint</th>
+              <th style="width:120px">Qty</th>
+              <th style="width:160px">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="chips" style="margin:6px 0 12px">
+        <span class="chip">Generator gebruikt <b>Patch Plan</b> (als gevuld), anders “single fixture” velden hieronder</span>
+        <span class="chip">Universe size: <b>512</b> (DMX512)</span>
+        <span class="chip">Hold <span class="kbd">Alt</span> to edit name/notes inline</span>
+      </div>
+
+      <!-- Bestaande generator-parameters -->
       <div class="row">
         <div class="field">
           <label for="addr-start">Start Address</label>
@@ -71,12 +100,6 @@
         </div>
       </div>
 
-      <div class="chips" style="margin:10px 0 6px">
-        <span class="chip">Universe is fixed at <b>512 ch</b> (DMX512)</span>
-        <span class="chip">Hold <span class="kbd">Alt</span> to edit name/notes inline</span>
-        <span class="chip" id="addr-fixture-chip" hidden>Using library fixture</span>
-      </div>
-
       <div class="table-wrap" style="margin-top:10px">
         <table id="addr-table">
           <thead><tr>
@@ -95,3 +118,4 @@
   </script>
 </body>
 </html>
+
