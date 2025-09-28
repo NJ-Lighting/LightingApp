@@ -296,8 +296,7 @@
     </div>
 
     <p class="hint" style="margin-top:10px">
-      Note: If the login/list fails with a “network/CORS” message, the remote server may block browser calls.
-      You can still use these endpoints via a small proxy or in an Electron / mobile shell that allows cross-origin requests.
+      Session cookie expires after ~2 hours — just log in again if needed.
     </p>
   </section>
 
@@ -362,7 +361,7 @@
   // Year
   $('#yr').textContent = new Date().getFullYear();
 
-  // ---------- Bulk Addressing (512/universe + universe colors) ----------
+  // ---------- Bulk Addressing ----------
   const els = {
     start: $('#addr-start'),
     univ: $('#addr-universe'),
@@ -383,7 +382,6 @@
     const rows=[];
     let curA = clamp(start,1,UNIVERSE_SIZE);
     let curU = Math.max(1, universe);
-
     for(let i=1;i<=quantity;i++){
       if(curA + footprint - 1 > UNIVERSE_SIZE){
         curU += 1;
@@ -515,7 +513,7 @@
     generate();
   })();
 
-  // ---------- DIP Switch (DMX base=1 only, no MODE OFFSET, 512 switch removed) ----------
+  // ---------- DIP Switch (base=1, no 512 switch, no offset) ----------
   const dip = {
     address: $('#dip-address'),
     toggles: $('#dip-toggles'),
@@ -547,7 +545,7 @@
   renderDIPs();
 
   function setSwitchesFor(addr){
-    const bitsTarget = clamp(addr,1,512) - 1;
+    const bitsTarget = Math.max(1, Math.min(512, addr)) - 1;
     DIP_VALUES.forEach(v=>{
       const input = dip.toggles.querySelector(`#sw-${v}`);
       const on = (bitsTarget & v) === v;
@@ -564,7 +562,7 @@
     return (mask & 0x1FF) + 1; // 1..512
   }
   function syncFromAddress(){
-    const a = clamp(+dip.address.value||1, 1, 512);
+    const a = Math.max(1, Math.min(512, +dip.address.value||1));
     setSwitchesFor(a);
   }
   function syncFromSwitches(){
@@ -712,7 +710,7 @@
   }
   loadLibrary();
 
-  // ---------- GDTF Share integration ----------
+  // ---------- GDTF Share (via same-origin Vercel proxy) ----------
   const gdtf = {
     user: $('#gdtf-user'),
     pass: $('#gdtf-pass'),
@@ -728,7 +726,8 @@
     loggedIn: false
   };
 
-  const GDTF_BASE = 'https://gdtf-share.com/apis/public';
+  // CHANGED: point to your Vercel API routes
+  const GDTF_BASE = '/api/gdtf';
 
   function setGdtfStatus(msg, kind='info'){
     const colors = {info:'#1f2a3a', ok:'#16a34a', warn:'#f59e0b', err:'#ef4444'};
@@ -739,19 +738,13 @@
   async function gdtfLogin(){
     try{
       setGdtfStatus('Logging in…');
-      const res = await fetch(`${GDTF_BASE}/login.php`, {
+      const res = await fetch(`${GDTF_BASE}/login`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        credentials: 'include', // keep session cookie
+        credentials: 'include',
         body: JSON.stringify({user: gdtf.user.value, password: gdtf.pass.value})
       });
-      // CORS edge-case in browsers: opaque response
-      if(res.type === 'opaque'){ setGdtfStatus('Login response blocked by CORS (opaque). See note below.', 'warn'); return; }
-      if(!res.ok){
-        const t = await res.text().catch(()=> '');
-        setGdtfStatus(`Login failed (${res.status}). ${t||''}`.trim(),'err');
-        return;
-      }
+      if(!res.ok){ setGdtfStatus(`Login failed (${res.status})`,'err'); return; }
       const data = await res.json().catch(()=> ({}));
       if(data?.result){
         gdtf.loggedIn = true;
@@ -761,23 +754,20 @@
         setGdtfStatus(data?.error || 'Login failed.','err');
       }
     }catch(e){
-      setGdtfStatus('Login error (network/CORS). See note below.','warn');
+      setGdtfStatus('Login error.','warn');
     }
   }
 
   function gdtfLogout(){
-    // There is no logout endpoint in the spec; we just clear UI state.
     gdtf.loggedIn = false;
     gdtf.getList.disabled = true;
     gdtf.tbody.innerHTML = '';
     gdtf.list = gdtf.filtered = [];
     gdtf.count.textContent = '';
-    setGdtfStatus('Logged out (local). Session cookie may remain active until it expires on the server.','info');
+    setGdtfStatus('Logged out (local).','info');
   }
 
   function normalizeModes(modes){
-    // Spec shows a slightly odd shape; make it robust.
-    // Expect either [{name:'', dmxfootprint:n}, ...] OR [{0:{name:'', dmxfootprint:n}}, ...]
     return (Array.isArray(modes)?modes:[]).map(m=>{
       if(m && typeof m==='object'){
         if('name' in m && 'dmxfootprint' in m) return {name:m.name, dmxfootprint:Number(m.dmxfootprint)||null};
@@ -837,24 +827,16 @@
   async function gdtfGetList(){
     try{
       setGdtfStatus('Fetching revision list…');
-      const res = await fetch(`${GDTF_BASE}/getList.php`, {credentials:'include'});
-      if(res.type === 'opaque'){ setGdtfStatus('List blocked by CORS (opaque). See note below.', 'warn'); return; }
-      if(!res.ok){
-        const t = await res.text().catch(()=> '');
-        setGdtfStatus(`Get List failed (${res.status}). ${t||''}`.trim(),'err');
-        return;
-      }
+      const res = await fetch(`${GDTF_BASE}/getList`, {credentials:'include'});
+      if(!res.ok){ const t = await res.text().catch(()=> ''); setGdtfStatus(`Get List failed (${res.status}). ${t||''}`.trim(),'err'); return; }
       const data = await res.json().catch(()=> null);
-      if(!data?.result){
-        setGdtfStatus(data?.error || 'Get List returned error.','err');
-        return;
-      }
+      if(!data?.result){ setGdtfStatus(data?.error || 'Get List returned error.','err'); return; }
       gdtf.list = Array.isArray(data.list)? data.list : [];
       setGdtfStatus(`Got ${gdtf.list.length} revisions. Timestamp: ${data.timestamp||''}`,'ok');
       gdtf.search.value = '';
       filterGdtf();
     }catch(e){
-      setGdtfStatus('Get List error (network/CORS). See note below.','warn');
+      setGdtfStatus('Get List error.','warn');
     }
   }
 
@@ -871,7 +853,7 @@
       model: row.fixture || '',
       mode: md?.name || (row.revision? `${row.revision}`:''),
       footprint: md?.dmxfootprint || null,
-      links: `https://gdtf-share.com/apis/public/downloadFile.php?rid=${row.rid}`,
+      links: `/api/gdtf/download?rid=${row.rid}`,
       notes: `GDTF RID ${row.rid} • Version ${row.version||'-'}`
     };
     if(!rec.brand || !rec.model){ toast('Missing manufacturer/fixture in record','error'); return; }
@@ -882,17 +864,14 @@
 
   async function downloadGdtf(rid){
     try{
-      const url = `${GDTF_BASE}/downloadFile.php?rid=${encodeURIComponent(rid)}`;
+      const url = `/api/gdtf/download?rid=${encodeURIComponent(rid)}`;
       const res = await fetch(url, {credentials:'include'});
-      if(res.type === 'opaque'){ toast('Download blocked by CORS (opaque). See note.','warning'); return; }
       if(!res.ok){
-        // If error JSON, try to read it
         let msg = `Download failed (${res.status})`;
         try{ const j = await res.json(); if(j?.error) msg += `: ${j.error}`; }catch{}
         toast(msg,'error'); return;
       }
       const blob = await res.blob();
-      // Build filename from row data
       const row = gdtf.list.find(x=> String(x.rid)===String(rid));
       const fname = `${(row?.manufacturer||'Manuf').replace(/\W+/g,'_')}-${(row?.fixture||'Fixture').replace(/\W+/g,'_')}-${(row?.revision||'rev').replace(/\W+/g,'_')}-RID${rid}.gdtf`;
       const a = document.createElement('a');
@@ -901,7 +880,7 @@
       document.body.appendChild(a); a.click(); a.remove();
       toast('Downloaded GDTF','success');
     }catch(e){
-      toast('Download error (network/CORS). See note.','warning');
+      toast('Download error.','warning');
     }
   }
 
@@ -945,6 +924,10 @@
     if(e.key==='e' || e.key==='E') $('#addr-export').click();
     if(e.key==='c' || e.key==='C') $('#addr-copy').click();
   });
+
+  // Utilities reused above
+  function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+  function shortURL(u){ try{ const {host,pathname} = new URL(u); return host + pathname.replace(/\/$/,''); }catch{return u} }
 
 })();
 </script>
