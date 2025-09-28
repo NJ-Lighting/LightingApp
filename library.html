@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>LightingApp – Fixture Library</title>
+  <meta name="theme-color" content="#0b0f15" />
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <main class="app" id="app">
+    <section class="card">
+      <h2>Fixture File Library</h2>
+      <div class="row" style="margin-bottom:10px; gap:8px">
+        <div class="field" style="flex:2"><input id="lib-search" placeholder="Search brand, model, mode…" /></div>
+        <button class="btn-ghost" id="lib-clear">Clear</button>
+        <button class="btn-primary" id="lib-add">Add Fixture</button>
+        <button class="btn-ghost" id="lib-import">Import JSON</button>
+        <button class="btn-ghost" id="lib-export">Export JSON</button>
+      </div>
+      <div class="list" id="lib-list"></div>
+      <div class="item" id="lib-empty" hidden>No fixtures yet. Add one of import JSON.</div>
+    </section>
+  </main>
+
+  <!-- Dialog -->
+  <dialog id="dlg-fixture" style="border:none; border-radius:16px; padding:0; max-width:680px; width:96vw; background:#0f1728; color:var(--text); box-shadow:var(--shadow)">
+    <form method="dialog" id="fixture-form" style="display:grid; gap:10px; padding:14px">
+      <h3 style="margin:0 0 4px">Fixture</h3>
+      <div class="row">
+        <div class="field"><label>Brand</label><input name="brand" required /></div>
+        <div class="field"><label>Model</label><input name="model" required /></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Mode Name</label><input name="mode" placeholder="e.g. 16ch Standard" /></div>
+        <div class="field"><label>Footprint (ch)</label><input type="number" name="footprint" min="1" value="16" /></div>
+      </div>
+      <div class="row"><div class="field"><label>Profile Links (OF/MA3/gDTF)</label><input name="links" placeholder="comma-separated URLs" /></div></div>
+      <div class="row"><div class="field"><label>Notes</label><textarea name="notes" rows="3"></textarea></div></div>
+      <div class="row" style="justify-content:flex-end"><button value="cancel">Cancel</button><button class="btn-primary" value="save">Save</button></div>
+      <input type="hidden" name="id" />
+    </form>
+  </dialog>
+
+  <script type="module">
+    import { renderHeader } from './assets/nav.js';
+    import { initLibrary } from './assets/library.js';
+    renderHeader('lib');
+    initLibrary();
+  </script>
+</body>
+</html>
