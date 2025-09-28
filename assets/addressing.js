@@ -1,7 +1,7 @@
 import { $, $$, clamp, UNIVERSE_SIZE, toast, dlBlob, copyText, escapeHTML } from './core.js';
 import state from './state.js';
 
-/* ---------- UI helpers ---------- */
+/* ---------- Helpers ---------- */
 function universeColor(u){
   const hue = (u * 47) % 360, sat = 68, light = 28;
   return {
@@ -11,7 +11,6 @@ function universeColor(u){
   };
 }
 
-/* ---------- New: library selection (typeahead) ---------- */
 function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placeholder}){
   let items=[]; let open=false; let activeIndex=-1; const MAX=20;
   input.setAttribute('autocomplete','off');
@@ -66,7 +65,7 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
   return { refresh: doFilter, close };
 }
 
-/* ---------- Addressing core ---------- */
+/* ---------- Address calculation ---------- */
 function calcAddressing({start, universe, footprint, quantity, gap, resetMode, nameTemplate}){
   if(footprint > UNIVERSE_SIZE){
     throw new Error('Footprint groter dan 512 (universe size).');
@@ -86,103 +85,66 @@ function calcAddressing({start, universe, footprint, quantity, gap, resetMode, n
     }
     const end = curA + footprint - 1;
     const name = typeof nameTemplate==='function' ? nameTemplate(i) : `Fixture ${i}`;
-    rows.push({ index:i, name, universe:curU, address:curA, footprint, end, notes:'' });
+    rows.push({ index:0, name, universe:curU, address:curA, footprint, end, notes:'' });
     curA = end + 1 + gap;
   }
   return rows;
 }
 
-function renderAddressing(rows, tbody){
-  tbody.innerHTML = '';
-  for(const r of rows){
-    const tr = document.createElement('tr');
-    const col = universeColor(r.universe);
-    tr.dataset.uni = r.universe;
-    tr.style.setProperty('--uni-bg', col.bg);
-    tr.style.setProperty('--uni-border', col.border);
-    tr.style.setProperty('--uni-dot', col.dot);
-
-    tr.innerHTML = `
-      <td class="idx">${r.index}</td>
-      <td class="name" contenteditable="plaintext-only" spellcheck="false">${r.name}</td>
-      <td class="universe uni-cell" contenteditable="plaintext-only"><span class="uni-dot"></span><span>${r.universe}</span></td>
-      <td class="address" contenteditable="plaintext-only">${r.address}</td>
-      <td>${r.footprint}</td>
-      <td>${r.end}</td>
-      <td class="notes" contenteditable="plaintext-only">${r.notes}</td>
-    `;
-    tr.querySelector('.universe').addEventListener('input', e=>{ e.target.textContent = e.target.textContent.replace(/[^0-9]/g,''); });
-    tr.querySelector('.address').addEventListener('input', e=>{ e.target.textContent = e.target.textContent.replace(/[^0-9]/g,''); });
-    tbody.appendChild(tr);
-  }
-}
-
-function getRowsFromTable(tbody){
-  return [...tbody.querySelectorAll('tr')].map(tr=>{
-    const toInt = (sel,def) => {
-      const v = parseInt(tr.querySelector(sel)?.textContent.trim()||def,10);
-      return Number.isFinite(v)?v:def;
-    };
-    return {
-      index: toInt('.idx',0),
-      name: tr.querySelector('.name')?.textContent.trim()||'',
-      universe: toInt('.universe',1),
-      address: toInt('.address',1),
-      footprint: toInt('td:nth-child(5)',1),
-      end: toInt('td:nth-child(6)',1),
-      notes: tr.querySelector('.notes')?.textContent.trim()||'',
-    };
-  });
-}
-
-/* ---------- Init ---------- */
+/* ---------- Main ---------- */
 export function initAddressing(){
   const els = {
-    // nieuw (fixture selection)
+    // Patch plan widgets
     fxInput: $('#addr-fixture-input'),
     fxList:  $('#addr-fixture-list'),
-    fxHint:  $('#addr-fixture-hint'),
-    fxClear: $('#addr-fixture-clear'),
-    fxChip:  $('#addr-fixture-chip'),
+    fxQty:   $('#addr-fixture-qty'),
+    fxAdd:   $('#addr-fixture-add'),
+    planWrap:$('#addr-plan-wrap'),
+    planTable:$('#addr-plan-table tbody'),
+    planClear:$('#addr-plan-clear'),
 
-    // bestaande controls
+    // legacy single-fixture controls (fallback)
     start: $('#addr-start'),
     univ: $('#addr-universe'),
     foot: $('#addr-footprint'),
     qty: $('#addr-quantity'),
     gap: $('#addr-gap'),
     mode: $('#addr-mode'),
+
+    // output + actions
     tbody: $('#addr-table tbody'),
     gen: $('#addr-generate'),
     exp: $('#addr-export'),
     copy: $('#addr-copy'),
   };
 
-  // --- Library data
-  let fixtures = state.getLibrary();
-  // selectie (optioneel)
-  let selected = null; // { brand, model, mode, footprint }
+  // --- library dataset for typeahead
+  const fixturesLib = () => state.getLibrary();
 
-  function selectionLabel(x){
-    const brand = x.brand?.trim()||'';
-    const model = x.model?.trim()||'';
-    const mode  = x.mode?.trim()||'';
-    const fp    = x.footprint ?? '?';
-    const left  = `${brand} ${model}`.trim();
-    const right = mode ? `${mode} • ${fp}ch` : `${fp}ch`;
-    return { left, right };
+  // selection buffer (what’s in the typeahead input right now)
+  let selectedBuf = null; // {brand, model, mode, footprint}
+
+  function planFromState(){
+    const st = state.getAddr() || {};
+    return Array.isArray(st.plan) ? st.plan : [];
+  }
+  function savePlan(plan){
+    const st = state.getAddr() || {};
+    st.plan = plan;
+    state.setAddr(st);
   }
 
-  // typeahead list items
-  const getItems = ()=> fixtures
+  // Build typeahead items
+  const getItems = ()=> fixturesLib()
     .slice()
     .sort((a,b)=> (a.brand+a.model+a.mode).localeCompare(b.brand+b.model+b.mode))
     .map(x=>{
-      const { left, right } = selectionLabel(x);
+      const labelLeft = `${(x.brand||'').trim()} ${(x.model||'').trim()}`.trim();
+      const labelRight = `${x.mode||'–'} • ${x.footprint??'?'}ch`;
       return {
         value: `${x.brand} ${x.model}`,
         meta: { mode: x.mode||'', footprint: x.footprint||null, brand:x.brand||'', model:x.model||'' },
-        label: `${left} — ${right}`,
+        label: `${labelLeft} — ${labelRight}`,
         raw: x
       };
     });
@@ -197,80 +159,229 @@ export function initAddressing(){
       return `<span>${left}</span><span class="ta-tag">${right}</span>`;
     },
     onChoose: (it, input, close)=>{
-      selected = {
+      selectedBuf = {
         brand: it.raw.brand||'',
         model: it.raw.model||'',
         mode:  it.raw.mode||'',
         footprint: Number(it.raw.footprint)||null
       };
-      input.value = `${selected.brand} ${selected.model}`;
-      const { left, right } = selectionLabel(selected);
-      els.fxHint.textContent = `${left} — ${right}`;
-      els.fxChip.hidden = false;
-
-      // footprint overschrijven vanuit keuze (gebruikers kunnen daarna nog aanpassen)
-      if(selected.footprint){ els.foot.value = selected.footprint; }
-
-      // opslaan in addr-state (extra keys toegestaan)
-      const st = state.getAddr();
-      st.selectedFixture = selected;
-      state.setAddr(st);
-
+      input.value = `${selectedBuf.brand} ${selectedBuf.model}`;
       close();
     },
     placeholder: 'Search brand, model, mode…'
   });
 
-  els.fxClear.addEventListener('click', ()=>{
-    selected = null;
-    els.fxInput.value = '';
-    els.fxHint.textContent = 'No selection';
-    els.fxChip.hidden = true;
+  function renderPlan(){
+    const plan = planFromState();
+    els.planWrap.style.display = plan.length ? 'block' : 'none';
+    els.planTable.innerHTML = '';
+    plan.forEach((p, idx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${idx+1}</td>
+        <td>${escapeHTML(`${p.brand} ${p.model}`.trim())}</td>
+        <td>${escapeHTML(p.mode||'–')}</td>
+        <td>${p.footprint??'?'} ch</td>
+        <td>
+          <div class="row" style="gap:6px; align-items:center">
+            <button class="btn-ghost" data-act="dec" data-i="${idx}">–</button>
+            <input data-i="${idx}" data-role="qty" value="${p.quantity}" type="number" min="1" style="width:64px" />
+            <button class="btn-ghost" data-act="inc" data-i="${idx}">+</button>
+          </div>
+        </td>
+        <td>
+          <div class="row" style="gap:6px; align-items:center">
+            <button class="btn-ghost" data-act="up" data-i="${idx}">↑</button>
+            <button class="btn-ghost" data-act="down" data-i="${idx}">↓</button>
+            <button data-act="del" data-i="${idx}">Remove</button>
+          </div>
+        </td>
+      `;
+      els.planTable.appendChild(tr);
+    });
+  }
 
-    const st = state.getAddr();
-    delete st.selectedFixture;
-    state.setAddr(st);
+  function addToPlan(sel, qty){
+    if(!sel){ toast('Select a fixture from Library first','warning'); return; }
+    const q = Math.max(1, Number(qty)||1);
+    const plan = planFromState();
+    // Merge if exactly same type+mode+footprint
+    const ix = plan.findIndex(p => p.brand===sel.brand && p.model===sel.model && p.mode===sel.mode && (p.footprint||null)===(sel.footprint||null));
+    if(ix>=0){ plan[ix].quantity += q; }
+    else{
+      plan.push({
+        brand: sel.brand||'',
+        model: sel.model||'',
+        mode:  sel.mode||'',
+        footprint: Number(sel.footprint)||null,
+        quantity: q
+      });
+    }
+    savePlan(plan);
+    renderPlan();
+    toast('Added to plan','success');
+  }
+
+  els.fxAdd.addEventListener('click', ()=>{
+    addToPlan(selectedBuf, els.fxQty.value);
+    // keep selection for rapid repeat, or clear? We'll keep.
   });
 
-  // --- Generator
+  els.planClear.addEventListener('click', ()=>{
+    savePlan([]);
+    renderPlan();
+  });
+
+  // Plan table interactions
+  $('#addr-plan-table')?.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    const i = Number(btn.dataset.i);
+    const plan = planFromState();
+    if(btn.dataset.act==='del'){ plan.splice(i,1); savePlan(plan); renderPlan(); return; }
+    if(btn.dataset.act==='up' && i>0){ const t=plan[i]; plan[i]=plan[i-1]; plan[i-1]=t; savePlan(plan); renderPlan(); return; }
+    if(btn.dataset.act==='down' && i<plan.length-1){ const t=plan[i]; plan[i]=plan[i+1]; plan[i+1]=t; savePlan(plan); renderPlan(); return; }
+    if(btn.dataset.act==='inc'){ plan[i].quantity += 1; savePlan(plan); renderPlan(); return; }
+    if(btn.dataset.act==='dec'){ plan[i].quantity = Math.max(1, plan[i].quantity-1); savePlan(plan); renderPlan(); return; }
+  });
+
+  $('#addr-plan-table')?.addEventListener('input', (e)=>{
+    const inp = e.target;
+    if(inp?.dataset?.role==='qty'){
+      const i = Number(inp.dataset.i);
+      const plan = planFromState();
+      plan[i].quantity = Math.max(1, Number(inp.value)||1);
+      savePlan(plan);
+    }
+  });
+
+  /* ---------- Output table renderers ---------- */
+  function renderAddressing(rows){
+    els.tbody.innerHTML = '';
+    rows.forEach((r, idx)=>{
+      r.index = idx+1;
+      const tr = document.createElement('tr');
+      const col = universeColor(r.universe);
+      tr.dataset.uni = r.universe;
+      tr.style.setProperty('--uni-bg', col.bg);
+      tr.style.setProperty('--uni-border', col.border);
+      tr.style.setProperty('--uni-dot', col.dot);
+
+      tr.innerHTML = `
+        <td class="idx">${r.index}</td>
+        <td class="name" contenteditable="plaintext-only" spellcheck="false">${r.name}</td>
+        <td class="universe uni-cell" contenteditable="plaintext-only"><span class="uni-dot"></span><span>${r.universe}</span></td>
+        <td class="address" contenteditable="plaintext-only">${r.address}</td>
+        <td>${r.footprint}</td>
+        <td>${r.end}</td>
+        <td class="notes" contenteditable="plaintext-only">${r.notes||''}</td>
+      `;
+      tr.querySelector('.universe').addEventListener('input', e=>{ e.target.textContent = e.target.textContent.replace(/[^0-9]/g,''); });
+      tr.querySelector('.address').addEventListener('input', e=>{ e.target.textContent = e.target.textContent.replace(/[^0-9]/g,''); });
+      els.tbody.appendChild(tr);
+    });
+  }
+
+  function getRowsFromTable(){
+    return [...els.tbody.querySelectorAll('tr')].map(tr=>{
+      const toInt = (sel,def) => {
+        const v = parseInt(tr.querySelector(sel)?.textContent.trim()||def,10);
+        return Number.isFinite(v)?v:def;
+      };
+      return {
+        index: toInt('.idx',0),
+        name: tr.querySelector('.name')?.textContent.trim()||'',
+        universe: toInt('.universe',1),
+        address: toInt('.address',1),
+        footprint: toInt('td:nth-child(5)',1),
+        end: toInt('td:nth-child(6)',1),
+        notes: tr.querySelector('.notes')?.textContent.trim()||'',
+      };
+    });
+  }
+
+  /* ---------- Generate logic ---------- */
   function generate(){
     try{
-      const footprint = Math.max(1, +els.foot.value||1);
-      const useSel = !!selected && Number(selected?.footprint)||footprint;
+      const start = +els.start.value || 1;
+      const universe = +els.univ.value || 1;
+      const resetMode = els.mode.value;
+      const gap = Math.max(0, +els.gap.value||0);
 
-      const nameTemplate = (i)=>{
-        if(selected){
-          const base = `${selected.brand} ${selected.model}`.trim();
-          const mode = selected.mode ? ` (${selected.mode})` : '';
-          return `${base}${mode} #${i}`;
+      const plan = planFromState();
+      let rows = [];
+      let nextStart = start;
+      let nextUniverse = universe;
+      let globalIndex = 1;
+
+      if(plan.length){
+        for(const p of plan){
+          const fp = Math.max(1, Number(p.footprint)||1);
+          const qty = Math.max(1, Number(p.quantity)||1);
+
+          const localNameTemplate = (i)=> {
+            const base = `${p.brand} ${p.model}`.trim();
+            const mode = p.mode ? ` (${p.mode})` : '';
+            // Combine global index so it's unique across plan:
+            return `${base}${mode} #${globalIndex + i - 1}`;
+          };
+
+          // run a sub-generation starting at current cursor (nextStart/nextUniverse)
+          const part = calcAddressing({
+            start: nextStart,
+            universe: nextUniverse,
+            footprint: fp,
+            quantity: qty,
+            gap,
+            resetMode,
+            nameTemplate: localNameTemplate
+          });
+
+          // update cursor for next part
+          if(part.length){
+            const last = part[part.length-1];
+            nextStart = last.end + 1 + gap;
+            nextUniverse = last.universe;
+            if(nextStart > UNIVERSE_SIZE){
+              // simulate overflow handling for the next loop iteration
+              if(resetMode==='reset'){ nextStart = 1; nextUniverse += 1; }
+              else{
+                nextStart = (nextStart - 1) - UNIVERSE_SIZE + 1;
+                nextUniverse += 1;
+                if(nextStart > UNIVERSE_SIZE){ nextStart = 1; }
+              }
+            }
+          }
+
+          globalIndex += qty;
+          rows = rows.concat(part);
         }
-        return `Fixture ${i}`;
-      };
+      }else{
+        // fallback: legacy single fixture behavior
+        const fp = Math.max(1, +els.foot.value||1);
+        const qty = Math.max(1, +els.qty.value||1);
+        rows = calcAddressing({
+          start, universe, footprint: fp, quantity: qty, gap, resetMode,
+          nameTemplate: (i)=> `Fixture ${i}`
+        });
+      }
 
-      const rows = calcAddressing({
-        start: +els.start.value || 1,
-        universe: +els.univ.value || 1,
-        footprint: selected?.footprint ? selected.footprint : footprint,
-        quantity: Math.max(1, +els.qty.value||1),
-        gap: Math.max(0, +els.gap.value||0),
-        resetMode: els.mode.value,
-        nameTemplate
-      });
-      renderAddressing(rows, els.tbody);
+      renderAddressing(rows);
 
-      // state bewaren, incl. selectie
+      // Save state (including plan)
       state.setAddr({
-        start:+els.start.value, universe:+els.univ.value, footprint: selected?.footprint || +els.foot.value,
-        quantity:+els.qty.value, gap:+els.gap.value, mode:els.mode.value,
-        selectedFixture: selected || null
+        start:+els.start.value, universe:+els.univ.value,
+        footprint:+els.foot.value, quantity:+els.qty.value,
+        gap:+els.gap.value, mode:els.mode.value,
+        plan: plan
       });
+
     }catch(err){
       toast(err.message || 'Error generating','error');
     }
   }
 
   function exportCSV(){
-    const rows = getRowsFromTable(els.tbody);
+    const rows = getRowsFromTable();
     const head = ['#','Name','Universe','Address','Footprint','End','Notes'];
     const csv = [head.join(',')].concat(
       rows.map(r=>[r.index,r.name,r.universe,r.address,r.footprint,r.end, `"${(r.notes||'').replace(/"/g,'""')}"`].join(','))
@@ -279,7 +390,7 @@ export function initAddressing(){
   }
 
   function copyTable(){
-    const rows = getRowsFromTable(els.tbody);
+    const rows = getRowsFromTable();
     const txt = rows.map(r=>`${r.index}\t${r.name}\tU${r.universe}\t@${r.address}\t${r.footprint}ch\tend ${r.end}\t${r.notes}`).join('\n');
     copyText(txt).then(()=> toast('Copied table to clipboard','success')).catch(()=> alert('Copy failed'));
   }
@@ -289,7 +400,7 @@ export function initAddressing(){
   els.exp.addEventListener('click', exportCSV);
   els.copy.addEventListener('click', copyTable);
 
-  // restore state (incl. fixture selection)
+  // restore state
   const st = state.getAddr() || {};
   if(st.start) els.start.value = st.start;
   if(st.universe) els.univ.value = st.universe;
@@ -297,19 +408,12 @@ export function initAddressing(){
   if(st.quantity) els.qty.value = st.quantity;
   if(Number.isFinite(st.gap)) els.gap.value = st.gap;
   if(st.mode) els.mode.value = st.mode;
+  renderPlan();
 
-  if(st.selectedFixture){
-    selected = st.selectedFixture;
-    els.fxInput.value = `${selected.brand||''} ${selected.model||''}`.trim();
-    const { left, right } = selectionLabel(selected);
-    els.fxHint.textContent = `${left} — ${right}`;
-    els.fxChip.hidden = false;
-    if(selected.footprint){ els.foot.value = selected.footprint; }
-  }
-
+  // initial render
   generate();
 
-  // luister naar updates (multi-tab)
+  // cross-tab sync
   state.onMessage(msg=>{
     if(msg?.type==='addr:update'){
       const s = msg.payload||{};
@@ -319,13 +423,7 @@ export function initAddressing(){
       if(s.quantity) els.qty.value = s.quantity;
       if(Number.isFinite(s.gap)) els.gap.value = s.gap;
       if(s.mode) els.mode.value = s.mode;
-      if(s.selectedFixture){
-        selected = s.selectedFixture;
-        els.fxInput.value = `${selected.brand||''} ${selected.model||''}`.trim();
-        const { left, right } = selectionLabel(selected);
-        els.fxHint.textContent = `${left} — ${right}`;
-        els.fxChip.hidden = false;
-      }
+      renderPlan();
       generate();
     }
   });
@@ -338,3 +436,4 @@ export function initAddressing(){
     if(e.key==='c' || e.key==='C') els.copy.click();
   });
 }
+
