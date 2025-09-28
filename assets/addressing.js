@@ -130,7 +130,6 @@ export function initAddressing(){
   els.exp.addEventListener('click', exportCSV);
   els.copy.addEventListener('click', copyTable);
 
-  // restore
   const st = state.getAddr();
   if(st.start) els.start.value = st.start;
   if(st.universe) els.univ.value = st.universe;
@@ -141,7 +140,6 @@ export function initAddressing(){
 
   generate();
 
-  // sync from other tabs if needed
   state.onMessage(msg=>{
     if(msg?.type==='addr:update'){
       const s = msg.payload||{};
@@ -155,7 +153,6 @@ export function initAddressing(){
     }
   });
 
-  // shortcuts
   window.addEventListener('keydown',(e)=>{
     if (['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
     if(e.key==='g' || e.key==='G') els.gen.click();
