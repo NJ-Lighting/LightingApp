@@ -1,10 +1,11 @@
+// js/dipswitch.page.js
 import { $ } from './core.js';
 import state from './state.js';
 
 const DIP_VALUES = [1,2,4,8,16,32,64,128,256];
 
-function renderDIPs(toggles){
-  toggles.innerHTML='';
+function renderDIPs(container){
+  container.innerHTML='';
   DIP_VALUES.forEach((v)=>{
     const id = `sw-${v}`;
     const el = document.createElement('div');
@@ -19,25 +20,25 @@ function renderDIPs(toggles){
       </label>
       <div class="value" id="lbl-${id}">OFF</div>
     `;
-    toggles.appendChild(el);
+    container.appendChild(el);
   });
-  toggles.addEventListener('change', syncFromSwitches);
+  container.addEventListener('change', syncFromSwitches);
 }
 
-function setSwitchesFor(addr, toggles){
+function setSwitchesFor(addr, container){
   const bitsTarget = Math.max(1, Math.min(512, addr)) - 1;
   DIP_VALUES.forEach(v=>{
-    const input = toggles.querySelector(`#sw-${v}`);
+    const input = container.querySelector(`#sw-${v}`);
     const on = (bitsTarget & v) === v;
     input.checked = on;
-    toggles.querySelector(`#lbl-sw-${v}`).textContent = on ? 'ON' : 'OFF';
+    container.querySelector(`#lbl-sw-${v}`).textContent = on ? 'ON' : 'OFF';
   });
 }
 
-function switchesValue(toggles){
+function switchesValue(container){
   let mask = 0;
   DIP_VALUES.forEach(v=>{
-    const input = toggles.querySelector(`#sw-${v}`);
+    const input = container.querySelector(`#sw-${v}`);
     if(input.checked) mask |= v;
   });
   return (mask & 0x1FF) + 1;
@@ -61,12 +62,13 @@ function syncFromSwitches(){
   state.setDip(addr1);
 }
 
-export function initDip(){
+export function initDipswitch(){
   els = {
-    address: $('#dip-address'),
-    toggles: $('#dip-toggles'),
-    apply: $('#dip-apply'),
-    clear: $('#dip-clear'),
+    // ⬇️ Aansluiten op jouw pages/dipswitch.html
+    address: $('#addr'),
+    toggles: $('#dipwrap'),
+    apply: $('#calc'),
+    clear: $('#fromDip'),
   };
 
   renderDIPs(els.toggles);
