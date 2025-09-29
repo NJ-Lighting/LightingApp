@@ -4,10 +4,12 @@
     return;
   }
 
-  // Wacht tot de pagina geladen is (zeker op iOS/Safari)
+  // Registreer altijd op root-pad, zodat SW alle routes kan controleren
+  const SW_URL = '/service-worker.js';
+
   window.addEventListener('load', async () => {
     try {
-      const reg = await navigator.serviceWorker.register('./service-worker.js'); // relatieve path → submap-proof
+      const reg = await navigator.serviceWorker.register(SW_URL, { scope: '/' });
       console.info('[SW] Geregistreerd:', reg.scope);
 
       if (reg.waiting) {
@@ -15,10 +17,10 @@
       }
 
       reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
             console.info('[SW] Nieuwe versie geïnstalleerd – ververs om te updaten');
           }
         });
