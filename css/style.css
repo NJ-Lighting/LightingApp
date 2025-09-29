@@ -196,13 +196,14 @@ th {
 /* === DIP Switch Calculator Layout === */
 .dips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;   /* alles op één rij */
   gap: 12px;
   margin-top: 16px;
+  overflow-x: auto;    /* horizontaal scrollen indien nodig */
 }
 
 .dip {
-  flex: 0 0 calc(25% - 12px); /* 4 kolommen */
+  flex: 0 0 auto;      /* elk element behoudt eigen breedte */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -271,3 +272,22 @@ th {
 .legend.on { left: -26px; color: var(--ok); }
 .legend.off { right: -30px; color: var(--err); }
 
+/* ==== Logo styling ==== */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* ruimte tussen icoon en tekst */
+  text-decoration: none;
+  color: inherit;
+}
+
+.logo svg {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.logo span {
+  font-size: 1rem;
+  line-height: 1;
+}
