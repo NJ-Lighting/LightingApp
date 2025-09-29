@@ -2,26 +2,21 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Offline – LightingApp</title>
   <meta name="theme-color" content="#0b0f15" />
-  <style>
-    :root{--bg:#0b0f15;--panel:#101724;--text:#e7eaf0;--muted:#9aa4b2;--border:#1f2a3a;--radius:16px}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
-    .wrap{max-width:720px;margin:0 auto;padding:24px}
-    .box{margin-top:24px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
-    .muted{color:var(--muted)}
-    a{color:#22d3ee}
-  </style>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div class="wrap">
-    <h1>Offline</h1>
-    <div class="box">
-      <p>Je bent momenteel offline. Goed nieuws: de kern van <strong>LightingApp</strong> werkt ook zonder internet.</p>
-      <p class="muted">Zodra je weer online bent, ververs de pagina om nieuwe data op te halen.</p>
-      <p><a href="index.html">Terug naar start</a></p>
-    </div>
-  </div>
+  <main class="app" id="app">
+    <header class="header">
+      <h1>Offline</h1>
+    </header>
+
+    <section class="card">
+      <p>Je bent offline. De kern van <strong>LightingApp</strong> werkt ook zonder internet. Zodra je weer online bent, ververs de pagina om updates op te halen.</p>
+      <p><a class="btn-ghost" href="index.html">Terug naar start</a></p>
+    </section>
+  </main>
 </body>
 </html>

@@ -2,32 +2,49 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>LightingApp – DIP-Switch</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>LightingApp – DIP-Switch Calculator</title>
+  <link rel="manifest" href="../manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
-  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body>
   <main class="app" id="app">
+    <header class="header"></header>
+
     <section class="card">
       <h2>DIP-Switch Calculator</h2>
-      <div class="row">
-        <div class="field"><label for="dip-address">DMX Address (1–512)</label><input id="dip-address" type="number" min="1" max="512" value="1" /></div>
-        <div class="field"><label>&nbsp;</label><div class="row"><button class="btn-primary" id="dip-apply">Apply</button><button class="btn-ghost" id="dip-clear">Clear</button></div></div>
+
+      <div class="row g8">
+        <div class="field">
+          <label for="addr">DMX adres (1–512)</label>
+          <input id="addr" type="number" min="1" max="512" value="1" />
+        </div>
+        <div class="field">
+          <label for="terminator">Terminator (10)</label>
+          <select id="terminator">
+            <option value="ignore" selected>Negeer</option>
+            <option value="on">Aan</option>
+            <option value="off">Uit</option>
+          </select>
+        </div>
       </div>
-      <div class="divider"></div>
-      <div class="toggles" id="dip-toggles" aria-label="DIP switches"></div>
-      <div class="chips" style="margin-top:8px">
-        <span class="chip">Switch values: 1,2,4,8,16,32,64,128,256</span>
-        <span class="chip">Edit switches directly of typ adres</span>
+
+      <div id="dipwrap" class="dips"></div>
+
+      <div class="row g8">
+        <button id="calc" class="btn-primary">Adres → DIP</button>
+        <button id="fromDip" class="btn-ghost">DIP → adres</button>
       </div>
     </section>
   </main>
+
+  <script src="../js/sw-register.js"></script>
   <script type="module">
-    import { renderHeader } from './assets/nav.js';
-    import { initDip } from './assets/dip.js';
+    import { renderHeader } from '../js/nav.js';
+    import { initDipswitch } from '../js/dipswitch.page.js';
     renderHeader('dip');
-    initDip();
+    initDipswitch();
   </script>
 </body>
 </html>

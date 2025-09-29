@@ -2,31 +2,33 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LightingApp – Bulk Addressing</title>
+  <link rel="manifest" href="../manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
-  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body>
   <main class="app" id="app">
+    <header class="header"></header>
+
     <section class="card">
       <h2>Bulk Fixture Addressing</h2>
 
-      <!-- Nieuw: Patch Plan opbouwen -->
+      <!-- Plan builder -->
       <div class="row" style="margin-bottom:6px">
         <div class="field" style="flex:2; min-width:280px">
           <label for="addr-fixture-input">Add fixture (from Library)</label>
           <div class="typeahead" id="ta-addr-fixture">
             <input id="addr-fixture-input" placeholder="Search brand, model, mode…" autocomplete="off" />
-            <div class="ta-list" id="addr-fixture-list" role="listbox" aria-label="Fixture suggestions"></div>
+            <div class="ta-list" id="addr-fixture-list" role="listbox"></div>
           </div>
-          <div class="hint">Kies een fixture en stel de hoeveelheid in. Klik daarna “Add to Plan”.</div>
         </div>
         <div class="field" style="max-width:140px">
           <label>Quantity</label>
           <input id="addr-fixture-qty" type="number" min="1" value="1" />
         </div>
-        <div class="field" style="max-width:180px">
+        <div class="field" style="max-width:220px">
           <label>&nbsp;</label>
           <div class="row">
             <button class="btn-primary" id="addr-fixture-add">Add to Plan</button>
@@ -35,59 +37,33 @@
         </div>
       </div>
 
-      <!-- Patch Plan lijst -->
-      <div class="table-wrap" id="addr-plan-wrap" style="margin:8px 0 12px; display:none">
+      <!-- Patch Plan Table -->
+      <div class="table-wrap" id="addr-plan-wrap" style="display:none">
         <table id="addr-plan-table">
           <thead>
             <tr>
-              <th style="width:34px">#</th>
-              <th>Fixture</th>
-              <th>Mode</th>
-              <th style="width:100px">Footprint</th>
-              <th style="width:120px">Qty</th>
-              <th style="width:160px">Actions</th>
+              <th>#</th><th>Fixture</th><th>Mode</th><th>Footprint</th><th>Qty</th><th>Actions</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
 
-      <div class="chips" style="margin:6px 0 12px">
-        <span class="chip">Generator gebruikt <b>Patch Plan</b> (als gevuld), anders “single fixture” velden hieronder</span>
-        <span class="chip">Universe size: <b>512</b> (DMX512)</span>
-        <span class="chip">Hold <span class="kbd">Alt</span> to edit name/notes inline</span>
-      </div>
-
-      <!-- Bestaande generator-parameters -->
+      <!-- Generator params -->
       <div class="row">
-        <div class="field">
-          <label for="addr-start">Start Address</label>
-          <input id="addr-start" type="number" min="1" max="512" value="1" />
-        </div>
-        <div class="field">
-          <label for="addr-universe">Start Universe</label>
-          <input id="addr-universe" type="number" min="1" value="1" />
-        </div>
-        <div class="field">
-          <label for="addr-footprint">Footprint (channels)</label>
-          <input id="addr-footprint" type="number" min="1" value="16" />
-        </div>
-        <div class="field">
-          <label for="addr-quantity">Quantity</label>
-          <input id="addr-quantity" type="number" min="1" value="8" />
-        </div>
+        <div class="field"><label for="addr-start">Start Address</label><input id="addr-start" type="number" min="1" max="512" value="1" /></div>
+        <div class="field"><label for="addr-universe">Start Universe</label><input id="addr-universe" type="number" min="1" value="1" /></div>
+        <div class="field"><label for="addr-footprint">Footprint</label><input id="addr-footprint" type="number" min="1" value="16" /></div>
+        <div class="field"><label for="addr-quantity">Quantity</label><input id="addr-quantity" type="number" min="1" value="1" /></div>
       </div>
 
-      <div class="row" style="margin-top:8px">
+      <div class="row">
+        <div class="field"><label for="addr-gap">Gap</label><input id="addr-gap" type="number" min="0" value="0" /></div>
         <div class="field">
-          <label for="addr-gap">Gap Between Fixtures (channels)</label>
-          <input id="addr-gap" type="number" min="0" value="0" />
-        </div>
-        <div class="field">
-          <label for="addr-mode">Numbering</label>
+          <label for="addr-mode">Overflow</label>
           <select id="addr-mode">
-            <option value="contiguous" selected>Contiguous across universes</option>
-            <option value="reset">Reset to 1 at each new universe</option>
+            <option value="reset" selected>Reset at new universe</option>
+            <option value="carry">Carry over</option>
           </select>
         </div>
         <div class="field">
@@ -100,22 +76,24 @@
         </div>
       </div>
 
-      <div class="table-wrap" style="margin-top:10px">
+      <!-- Output -->
+      <div class="table-wrap">
         <table id="addr-table">
-          <thead><tr>
-            <th>#</th><th>Name</th><th>Universe</th><th>Address</th><th>Footprint</th><th>End</th><th>Notes</th>
-          </tr></thead>
+          <thead>
+            <tr><th>#</th><th>Name</th><th>Universe</th><th>Address</th><th>Footprint</th><th>End</th><th>Notes</th></tr>
+          </thead>
           <tbody></tbody>
         </table>
       </div>
     </section>
   </main>
+
+  <script src="../js/sw-register.js"></script>
   <script type="module">
-    import { renderHeader } from './assets/nav.js';
-    import { initAddressing } from './assets/addressing.js';
+    import { renderHeader } from '../js/nav.js';
+    import { initAddressing } from '../js/addressing.page.js';
     renderHeader('addr');
     initAddressing();
   </script>
 </body>
 </html>
-
