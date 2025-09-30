@@ -75,11 +75,15 @@ function renderDIPs(container){
     container.appendChild(el);
   });
 
+  // Eén change-listener op de container
   if (_boundChangeHandler) {
     container.removeEventListener('change', _boundChangeHandler);
   }
   _boundChangeHandler = ()=> syncFromSwitches();
   container.addEventListener('change', _boundChangeHandler);
+
+  // Init labels (voor het geval flip nog niet is toegepast)
+  updateNumbers();
 }
 
 /* ---------- DMX mapping: som(gewichten) = adres ---------- */
@@ -87,12 +91,10 @@ function renderDIPs(container){
 function setSwitchesFor(addr, container){
   if(!container) return;
   const a = Math.max(1, Math.min(MAX_ADDR, Number(addr)||1));
-  let mask = a; // adres == bitmask som
-
   DIP_VALUES.forEach(v=>{
     const input = container.querySelector(`#sw-${v}`);
     if(!input) return;
-    const on = (mask & v) === v;
+    const on = (a & v) === v;
     input.checked = on;
     const lbl = container.querySelector(`#lbl-sw-${v}`);
     if(lbl) lbl.textContent = on ? 'ON' : 'OFF';
@@ -110,29 +112,31 @@ function switchesValue(container){
 }
 
 function syncFromAddress(){
-  if(!els) return;
-  const a = Math.max(1, Math.min(MAX_ADDR, Number(els.address?.value)||1));
+  if(!els?.address || !els?.toggles) return;
+  const a = Math.max(1, Math.min(MAX_ADDR, Number(els.address.value)||1));
   setSwitchesFor(a, els.toggles);
-  state.setDip(a);
+  state.setDip?.(a);
 }
 
 function syncFromSwitches(){
-  if(!els) return;
+  if(!els?.toggles) return;
   const addr1 = switchesValue(els.toggles);
   if(els.address) els.address.value = addr1;
 
-  const inputs = els.toggles?.querySelectorAll('input[type="checkbox"]') || [];
+  // Labels bijwerken
+  const inputs = els.toggles.querySelectorAll('input[type="checkbox"]');
   inputs.forEach(inp=>{
     const id = inp.id;
     const lbl = els.toggles.querySelector(`#lbl-${id}`);
     if(lbl) lbl.textContent = inp.checked ? 'ON' : 'OFF';
   });
 
-  state.setDip(addr1);
+  state.setDip?.(addr1);
 }
 
 /* ---------- UI ---------- */
 function applyOrientationUI(){
+  if(!els?.toggles || !els?.orientBtn) return;
   const orient = getOrient(); // 'up' | 'down'
   const isDown = orient === 'down';
 
@@ -140,47 +144,42 @@ function applyOrientationUI(){
   els.toggles.classList.toggle('on-down', isDown);
 
   // pijltje toont HUIDIGE richting: up => ▲, down => ▼
-  const arrowEl = els.orientBtn?.querySelector('.arrow');
+  const arrowEl = els.orientBtn.querySelector('.arrow');
   if (arrowEl){
     arrowEl.classList.remove('up','down');
     arrowEl.classList.add(isDown ? 'down' : 'up');
   }
 
   // knoptekst + title
-  els.orientBtn?.setAttribute('aria-pressed', String(isDown));
-  const lab = els.orientBtn?.querySelector('.arrow-label');
+  els.orientBtn.setAttribute('aria-pressed', String(isDown));
+  const lab = els.orientBtn.querySelector('.arrow-label');
   if(lab) lab.textContent = isDown ? 'ON beneden' : 'ON boven';
-  if(els.orientBtn){
-    els.orientBtn.title = isDown ? 'Zet ON naar boven' : 'Zet ON naar beneden';
-  }
+  els.orientBtn.title = isDown ? 'Zet ON naar boven' : 'Zet ON naar beneden';
 }
 
 function applyHFlipUI(){
+  if(!els?.hflipBtn) return;
   const h = getHFlip(); // 'ltr' | 'rtl'
   reorderDips(h); // echte omkering van de volgorde
 
   const pressed = h === 'rtl';
-  els.hflipBtn?.setAttribute('aria-pressed', String(pressed));
-  const ah = els.hflipBtn?.querySelector('.arrow-h');
+  els.hflipBtn.setAttribute('aria-pressed', String(pressed));
+  const ah = els.hflipBtn.querySelector('.arrow-h');
   if(ah){
     ah.classList.toggle('left', pressed); // ▶ of ◀
   }
-  const lab = els.hflipBtn?.querySelector('.arrow-h-label');
+  const lab = els.hflipBtn.querySelector('.arrow-h-label');
   if(lab) lab.textContent = pressed ? 'Rechts → Links' : 'Links → Rechts';
-  if(els.hflipBtn){
-    els.hflipBtn.title = pressed ? 'Spiegel naar Links' : 'Spiegel naar Rechts';
-  }
+  els.hflipBtn.title = pressed ? 'Spiegel naar Links' : 'Spiegel naar Rechts';
 }
 
 function toggleOrientation(){
-  const next = getOrient() === 'down' ? 'up' : 'down';
-  setOrient(next);
+  setOrient(getOrient() === 'down' ? 'up' : 'down');
   applyOrientationUI();
 }
 
 function toggleHFlip(){
-  const next = getHFlip() === 'rtl' ? 'ltr' : 'rtl';
-  setHFlip(next);
+  setHFlip(getHFlip() === 'rtl' ? 'ltr' : 'rtl');
   applyHFlipUI();
 }
 
