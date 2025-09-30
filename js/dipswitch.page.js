@@ -17,16 +17,12 @@ function setHFlip(v){ localStorage.setItem(LS_KEY_HFLIP, v === 'rtl' ? 'rtl' : '
 let els = null;
 let _boundChangeHandler = null;
 
-/* ---------- Helpers voor nummerlabels ---------- */
-// Voor DOM-index i (0..8) bepalen wat er boven de switch moet staan:
-// - ltr: 1..9
-// - rtl: 9..1 (links is dan visueel de laatste DOM-node)
+/* ---------- Nummerlabels ---------- */
 function numberLabelForIndex(i){
   const h = getHFlip();
   return (h === 'rtl') ? (9 - i) : (i + 1);
 }
 
-// Werk alleen de "1..9"/"9..1" labels bij zonder de DIP-markup opnieuw te bouwen
 function updateNumbers(){
   if(!els?.toggles) return;
   const dips = els.toggles.querySelectorAll('.dip');
@@ -34,23 +30,38 @@ function updateNumbers(){
     const numEl = dip.querySelector('.num');
     if(numEl) numEl.textContent = String(numberLabelForIndex(i));
     const inp = dip.querySelector('input[type="checkbox"]');
-    if(inp){
-      // aria-label ook updaten naar positie-nummer
-      inp.setAttribute('aria-label', `Switch ${numberLabelForIndex(i)}`);
-    }
+    if(inp) inp.setAttribute('aria-label', `Switch ${numberLabelForIndex(i)}`);
   });
+}
+
+/* ---------- DOM volgorde omkeren i.p.v. alleen flex-direction ---------- */
+function reorderDips(direction /* 'ltr' | 'rtl' */){
+  if(!els?.toggles) return;
+  const wrap = els.toggles;
+  const keepScroll = wrap.scrollLeft;
+
+  const nodes = Array.from(wrap.children).filter(n => n.classList?.contains('dip'));
+  nodes.sort((a,b)=>{
+    const ia = parseInt(a.dataset.idx, 10);
+    const ib = parseInt(b.dataset.idx, 10);
+    return direction === 'rtl' ? (ib - ia) : (ia - ib);
+  });
+  nodes.forEach(n => wrap.appendChild(n));
+
+  wrap.scrollLeft = keepScroll;
+  updateNumbers();
 }
 
 /* ---------- Render ---------- */
 function renderDIPs(container){
   if(!container) return;
-
-  // (Re)render markup in vaste DOM-orde (bitvolgorde). Visuele richting doet CSS.
   container.innerHTML = '';
+
   DIP_VALUES.forEach((bitVal, i)=>{
     const id = `sw-${bitVal}`;
     const el = document.createElement('div');
     el.className = 'dip';
+    el.dataset.idx = String(i); // originele index om te kunnen sorteren
     el.innerHTML = `
       <div class="num">${numberLabelForIndex(i)}</div>
       <label class="toggle" for="${id}">
@@ -121,12 +132,11 @@ function syncFromSwitches(){
   state.setDip(addr1);
 }
 
-/* ---------- UI-toepassingen ---------- */
+/* ---------- UI ---------- */
 function applyOrientationUI(){
   const orient = getOrient(); // 'up' | 'down'
   els.toggles.classList.toggle('on-down', orient === 'down');
 
-  // Knop status + pijl + titel
   const pressed = orient === 'down';
   els.orientBtn?.setAttribute('aria-pressed', String(pressed));
   els.orientBtn?.querySelector('.arrow')?.classList.toggle('down', pressed);
@@ -139,9 +149,11 @@ function applyOrientationUI(){
 
 function applyHFlipUI(){
   const h = getHFlip(); // 'ltr' | 'rtl'
-  els.toggles.classList.toggle('h-rtl', h === 'rtl');
 
-  // Knop status + pijl + titel
+  // NIET meer vertrouwen op flex row-reverse (dat schoof alleen de bank naar rechts):
+  // we herordenen de DOM zodat de volgorde écht omdraait.
+  reorderDips(h);
+
   const pressed = h === 'rtl';
   els.hflipBtn?.setAttribute('aria-pressed', String(pressed));
   els.hflipBtn?.querySelector('.arrow-h')?.classList.toggle('left', pressed);
@@ -150,9 +162,6 @@ function applyHFlipUI(){
   if(els.hflipBtn){
     els.hflipBtn.title = pressed ? 'Spiegel naar Links' : 'Spiegel naar Rechts';
   }
-
-  // Nummerlabels meteen updaten (1→9 of 9→1)
-  updateNumbers();
 }
 
 function toggleOrientation(){
@@ -179,7 +188,7 @@ export function initDipswitch(){
 
   // Init verticale ON-richting + horizontale spiegeling
   applyOrientationUI();
-  applyHFlipUI();     // zet ook meteen de juiste 1→9 / 9→1 labels
+  applyHFlipUI(); // zet ook meteen de juiste 1→9 / 9→1 labels en DOM-volgorde
 
   // Live sync adres ↔ switches
   els.address?.addEventListener('input', syncFromAddress);

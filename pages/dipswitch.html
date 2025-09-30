@@ -13,20 +13,16 @@
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/nav.css" />
 
-  <!-- Pagina-specifieke styles -->
+  <!-- Pagina-specifieke styles (zit bij jou óók in style.css, dit is prima) -->
   <link rel="stylesheet" href="/css/dipswitch.css" />
 </head>
 <body>
-  <!-- Optioneel: je bestaande navigatie/header hier -->
-  <!-- <header> ... </header> -->
-
   <main class="app" id="app">
     <section class="card">
       <h2>DIP-Switch Calculator</h2>
       <p class="muted">
-        Voer een DMX-adres (1–512) in of tik schakelaars aan. De nummertjes boven de DIP’s zijn
-        <b>1 → 9</b>. Met <i>ON-richting</i> kies je of “ON” boven of beneden zit. Met
-        <i>Horizontaal spiegelen</i> wissel je links ↔ rechts. Je keuzes worden onthouden (localStorage).
+        Voer een DMX-adres (1–512) in of tik schakelaars aan. De labels boven de switches lopen
+        <b>1→9</b> bij links→rechts en <b>9→1</b> bij rechts→links. Je keuzes worden onthouden.
       </p>
 
       <div class="row g8">
@@ -34,28 +30,28 @@
           <label for="addr">DMX adres (1–512)</label>
           <input id="addr" type="number" min="1" max="512" value="1" inputmode="numeric" />
         </div>
+      </div>
 
-        <!-- Verticale ON-richting (boven/beneden) -->
-        <button class="btn" id="dip-orient" type="button" aria-pressed="false" title="Zet ON naar beneden">
-          <span class="arrow" aria-hidden="true">↕</span>
+      <!-- Rij met verticale knop LINKS en de DIP-bank RECHTS -->
+      <div class="dipwrap-row">
+        <!-- Verticale ON-richting (boven/beneden) links naast de bank -->
+        <button class="btn arrow-btn vertical" id="dip-orient" type="button" aria-pressed="false" title="Zet ON naar beneden">
+          <span class="arrow" aria-hidden="true"></span>
           <span class="arrow-label">ON beneden</span>
         </button>
 
-        <!-- Horizontale flip (links/rechts) -->
-        <button class="btn" id="dip-hflip" type="button" aria-pressed="false" title="Spiegel naar Rechts">
-          <span class="arrow-h" aria-hidden="true">↔</span>
-          <span class="arrow-h-label">Links → Rechts</span>
-        </button>
+        <!-- De 9 DIP’s -->
+        <div id="dipwrap" class="dips">
+          <!-- JS rendert hier 9 items -->
+        </div>
       </div>
 
-      <!-- Container waar de JS de 9 DIP’s in rendert -->
-      <div class="dip-wrap">
-        <div id="dipwrap" class="dips">
-          <!-- JS (renderDIPs) plaatst hier 9 items:
-               .dip > .num + label.toggle > input[type=checkbox] + .knob + .legend.on + .legend.off
-               + .value (status)
-               IDs: #sw-1, #sw-2, #sw-4, ... #sw-256 -->
-        </div>
+      <!-- Rij met horizontale flip KNOP onder de bank, gecentreerd -->
+      <div class="dipwrap-row horizontal">
+        <button class="btn arrow-btn horizontal" id="dip-hflip" type="button" aria-pressed="false" title="Spiegel naar Rechts">
+          <span class="arrow-h" aria-hidden="true"></span>
+          <span class="arrow-h-label">Links → Rechts</span>
+        </button>
       </div>
     </section>
   </main>
