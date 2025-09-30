@@ -4,12 +4,20 @@ import state from './state.js';
 
 // 9 bits voor adres (1..512) → DIP-waarden 1..256 (bit 0..8)
 const DIP_VALUES = [1,2,4,8,16,32,64,128,256];
+const LS_KEY_ORIENT = 'lightingapp.dip.orient'; // 'up' | 'down'
+
+function getOrient(){
+  const v = localStorage.getItem(LS_KEY_ORIENT);
+  return v === 'down' ? 'down' : 'up'; // default 'up' (ON boven)
+}
+function setOrient(v){
+  localStorage.setItem(LS_KEY_ORIENT, v === 'down' ? 'down' : 'up');
+}
 
 function renderDIPs(container){
   if(!container) return;
   container.innerHTML = '';
 
-  // Adres-switches 1..9
   DIP_VALUES.forEach((v)=>{
     const id = `sw-${v}`;
     const el = document.createElement('div');
@@ -71,7 +79,7 @@ function syncFromSwitches(){
   const addr1 = switchesValue(els.toggles);
   if(els.address) els.address.value = addr1;
 
-  // Labels bijwerken voor alle zichtbare toggles
+  // Labels bijwerken
   const inputs = els.toggles?.querySelectorAll('input[type="checkbox"]') || [];
   inputs.forEach(inp=>{
     const id = inp.id;
@@ -82,15 +90,38 @@ function syncFromSwitches(){
   state.setDip(addr1);
 }
 
+/* ---------- Orientatie (ON boven/beneden) ---------- */
+function applyOrientationUI(){
+  const orient = getOrient(); // 'up' | 'down'
+  // Class op container bepaalt alle CSS (positie handle + labels)
+  els.toggles.classList.toggle('on-down', orient === 'down');
+
+  // Knop status + pijl
+  const pressed = orient === 'down';
+  els.orientBtn.setAttribute('aria-pressed', String(pressed));
+  els.orientBtn.querySelector('.arrow')?.classList.toggle('down', pressed);
+  els.orientBtn.querySelector('.arrow-label').textContent = pressed ? 'ON beneden' : 'ON boven';
+}
+
+function toggleOrientation(){
+  const next = getOrient() === 'down' ? 'up' : 'down';
+  setOrient(next);
+  applyOrientationUI();
+}
+
 export function initDipswitch(){
   els = {
     address: $('#addr'),
     toggles: $('#dipwrap'),
+    orientBtn: $('#dip-orient'),
   };
 
   renderDIPs(els.toggles);
 
-  // Live sync beide kanten op
+  // Init orientatie uit LS en pas toe
+  applyOrientationUI();
+
+  // Live sync adres ↔ switches
   els.address?.addEventListener('input', syncFromAddress);
 
   // Startwaarde uit state (adres)
@@ -98,6 +129,9 @@ export function initDipswitch(){
     els.address.value = state.getDip();
     syncFromAddress();
   }
+
+  // Toggle ON-richting
+  els.orientBtn?.addEventListener('click', toggleOrientation);
 
   // Cross-tab sync
   state.onMessage(msg=>{

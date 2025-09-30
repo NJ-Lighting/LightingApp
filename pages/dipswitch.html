@@ -19,9 +19,18 @@
       <h2>DIP-Switch Calculator</h2>
 
       <div class="row g8">
-        <div class="field">
+        <div class="field" style="max-width:200px">
           <label for="addr">DMX adres (1–512)</label>
           <input id="addr" type="number" min="1" max="512" value="1" />
+        </div>
+
+        <!-- Nieuwe ON-richting knop -->
+        <div class="field" style="max-width:220px">
+          <label aria-hidden="true">&nbsp;</label>
+          <button id="dip-orient" class="btn-ghost arrow-btn" type="button" aria-pressed="false" title="Zet ON-richting">
+            <span class="arrow" aria-hidden="true"></span>
+            <span class="arrow-label">ON beneden</span>
+          </button>
         </div>
       </div>
 

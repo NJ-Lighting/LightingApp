@@ -85,7 +85,7 @@ button:active, .btn:active { transform: translateY(1px); }
 }
 input[type="number"] {
   -moz-appearance: textfield;
-  appearance: textfield;           /* lint fix */
+  appearance: textfield;
 }
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
@@ -100,11 +100,11 @@ th, td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: 
 th { background: var(--panel-2); font-weight: 600; position: sticky; top: 0; z-index: 1; }
 tr:hover td { background: rgba(255,255,255,.02); }
 
-/* Universe cell styling (uses CSS vars set per-row) */
+/* Universe cell styling */
 .uni-cell { position: relative; border-left: 3px solid var(--uni-border, var(--border)); background: var(--uni-bg, transparent); border-radius: 6px; padding-left: 8px; }
 .uni-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; background: var(--uni-dot, var(--accent)); margin-right: 6px; }
 
-/* Toasts (legacy class kept for compatibility; core.js gebruikt container) */
+/* Toasts */
 .toast {
   position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
   background: var(--panel); padding: 10px 16px; border-radius: var(--radius);
@@ -129,42 +129,39 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .ta-tag { font-size: .8rem; color: var(--muted); }
 .ta-disabled { opacity: .6; pointer-events: none; }
 
-/* Notes / callouts */
+/* Notes */
 .note {
   border: 1px solid var(--border); background: var(--panel-2);
   padding: 8px 12px; border-radius: var(--radius); color: var(--text);
 }
 
 /* === DIP Switch Calculator Layout === */
-/* 1 rij, horizontaal scrollbaar indien nodig */
 .dips {
   display: flex; flex-wrap: nowrap; gap: 12px; margin-top: 16px; overflow-x: auto; padding-bottom: 6px;
 }
 .dip {
   flex: 0 0 auto;
   display: flex; flex-direction: column; align-items: center;
-  padding: 10px 8px 18px; /* meer ademruimte t.o.v. labels */
+  padding: 10px 8px 18px; /* lucht t.o.v. labels */
   background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius);
-  min-width: 56px; /* voorkomt knellen bij grotere fonts */
+  min-width: 56px;
 }
 .dip .num,
 .dip .value,
-.legend { line-height: 1; } /* compacter zodat niks uitsteekt */
-
+.legend { line-height: 1; }
 .dip .num   { font-size: .9rem; margin-bottom: 8px; }
 .dip .value { margin-top: 8px;  font-size: .85rem; color: var(--muted); }
 
-/* === Toggle switches: verticaal (up=ON, down=OFF) === */
+/* Toggle verticaal (up=ON, down=OFF) */
 .toggle {
   position: relative;
   display: inline-block;
   width: 28px;
-  height: 56px;  /* hoge baan */
-  margin: 10px 0; /* extra marge zodat labels niet botsen */
+  height: 56px;
+  margin: 10px 0;
 }
 .toggle input { display: none; }
 
-/* Achtergrond (track) */
 .toggle .knob {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, #102033, #0c1727);
@@ -172,7 +169,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
   border-radius: 14px;
 }
 
-/* Handle beweegt verticaal */
+/* Default: ON boven */
 .toggle .knob::after {
   content: "";
   position: absolute;
@@ -189,7 +186,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
   transform: translate(-50%, 4px); /* naar boven bij ON */
 }
 
-/* Labels boven en onder */
+/* Labels */
 .legend {
   position: absolute;
   left: 50%;
@@ -197,22 +194,43 @@ tr:hover td { background: rgba(255,255,255,.02); }
   font-size: .7rem;
   pointer-events: none;
 }
-.legend.on  { top: -10px;  color: var(--ok); }  /* dichter bij de baan */
-.legend.off { bottom: -12px; color: var(--err); }/* dichter bij de baan */
+.legend.on  { top: -10px;  color: var(--ok); }
+.legend.off { bottom: -12px; color: var(--err); }
 
-/* ==== Logo styling ==== */
-.logo {
-  display: inline-flex; align-items: center; gap: 8px;
-  text-decoration: none; color: inherit;
+/* === FLIP MODUS: ON beneden === */
+.dips.on-down .toggle .knob::after {
+  transform: translate(-50%, 4px); /* standaard boven (OFF) */
 }
-.logo svg { width: 28px; height: 28px; flex-shrink: 0; }
-.logo span { font-size: 1rem; line-height: 1; }
+.dips.on-down .toggle input:checked + .knob::after {
+  transform: translate(-50%, 32px); /* naar beneden bij ON */
+}
+/* Labels wisselen positie */
+.dips.on-down .legend.on  { top: auto;  bottom: -12px; }
+.dips.on-down .legend.off { bottom: auto; top: -10px; }
 
-/* (optioneel) grotere targets op touch devices */
+/* ON-richting knop (pijl) */
+.arrow-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 38px;
+}
+.arrow {
+  width: 0; height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 12px solid var(--accent); /* ▲ omhoog = ON boven */
+  transition: transform .2s ease;
+}
+.arrow.down {
+  transform: rotate(180deg);      /* ▼ omlaag = ON beneden */
+}
+.arrow-label { font-weight: 600; color: var(--text); }
+
+/* Touch targets groter */
 @media (pointer: coarse) {
   .toggle { width: 32px; height: 64px; margin: 12px 0; }
   .toggle .knob::after { width: 24px; height: 24px; transform: translate(-50%, 36px); }
   .toggle input:checked + .knob::after { transform: translate(-50%, 6px); }
-  .legend.on  { top: -12px; }
-  .legend.off { bottom: -14px; }
+  /* Flip-correctie voor touch */
+  .dips.on-down .toggle .knob::after { transform: translate(-50%, 6px); }
+  .dips.on-down .toggle input:checked + .knob::after { transform: translate(-50%, 36px); }
 }
