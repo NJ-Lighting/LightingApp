@@ -6,34 +6,34 @@
   <title>LightingApp – Field Tools</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
+  <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
-  <link rel="icon" sizes="192x192" href="assets/icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="icon" sizes="192x192" href="/assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png" />
 
   <!-- Styles -->
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/nav.css" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/nav.css" />
 </head>
 <body>
   <main class="app" id="app">
     <section class="grid">
-      <a class="card" href="addressing.html">
+      <a class="card" href="/addressing.html">
         <h3>Bulk Addressing</h3>
         <p class="muted">Patch meerdere fixture types tegelijk</p>
       </a>
 
-      <a class="card" href="dipswitch.html">
+      <a class="card" href="/dipswitch.html">
         <h3>DIP-Switch Calculator</h3>
         <p class="muted">DMX adres ⇄ schakelaars</p>
       </a>
 
-      <a class="card" href="gdtf.html">
+      <a class="card" href="/gdtf.html">
         <h3>Fixture Library (GDTF)</h3>
         <p class="muted">Zoek fabrikant / model / naam</p>
       </a>
 
-      <a class="card" href="about.html">
+      <a class="card" href="/about.html">
         <h3>About</h3>
         <p class="muted">Over de app</p>
       </a>
@@ -44,10 +44,10 @@
     </footer>
   </main>
 
-  <script src="js/sw-register.js"></script>
-  <script type="module">
-    import { renderHeader } from './js/nav.js';
-    renderHeader('home');
+  <!-- Scripts -->
+  <script src="/js/sw-register.js"></script>
+  <script type="module" src="/js/nav.js"></script>
+  <script>
     document.getElementById('year').textContent = new Date().getFullYear();
   </script>
 </body>
