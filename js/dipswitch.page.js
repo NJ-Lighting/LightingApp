@@ -6,7 +6,7 @@ import state from './state.js';
 const DIP_VALUES = [1,2,4,8,16,32,64,128,256];
 const MAX_ADDR = 511;
 
-const LS_KEY_ORIENT = 'lightingapp.dip.orient'; // 'up' | 'down'  (ON-richting)
+const LS_KEY_ORIENT = 'lightingapp.dip.orient'; // 'up' | 'down'  (ON-richting = huidige toestand)
 const LS_KEY_HFLIP  = 'lightingapp.dip.hflip';  // 'ltr' | 'rtl' (links/rechts)
 
 function getOrient(){ return (localStorage.getItem(LS_KEY_ORIENT) === 'down') ? 'down' : 'up'; }
@@ -137,24 +137,24 @@ function syncFromSwitches(){
 /* ---------- UI ---------- */
 function applyOrientationUI(){
   if(!els?.toggles || !els?.orientBtn) return;
-  const orient = getOrient(); // 'up' | 'down'
-  const isDown = orient === 'down';
+  const orient = getOrient(); // huidige toestand: 'up' | 'down'
+  const next   = orient === 'down' ? 'up' : 'down'; // wat er gebeurt bij klik
 
-  // switch-visuals
-  els.toggles.classList.toggle('on-down', isDown);
+  // CSS voor ON-positie (visual van de schakelaars)
+  els.toggles.classList.toggle('on-down', orient === 'down');
 
-  // pijltje toont HUIDIGE richting: up => ▲, down => ▼
+  // Pijl toont ACTIE (volgende richting)
   const arrowEl = els.orientBtn.querySelector('.arrow');
   if (arrowEl){
     arrowEl.classList.remove('up','down');
-    arrowEl.classList.add(isDown ? 'down' : 'up');
+    arrowEl.classList.add(next === 'down' ? 'down' : 'up');
   }
 
-  // knoptekst + title
-  els.orientBtn.setAttribute('aria-pressed', String(isDown));
+  // Knoptekst + title beschrijven ook de ACTIE
+  els.orientBtn.setAttribute('aria-pressed', String(orient === 'down'));
   const lab = els.orientBtn.querySelector('.arrow-label');
-  if(lab) lab.textContent = isDown ? 'ON beneden' : 'ON boven';
-  els.orientBtn.title = isDown ? 'Zet ON naar boven' : 'Zet ON naar beneden';
+  if(lab) lab.textContent = next === 'down' ? 'ON beneden' : 'ON boven';
+  els.orientBtn.title = next === 'down' ? 'Zet ON naar beneden' : 'Zet ON naar boven';
 }
 
 function applyHFlipUI(){
@@ -162,15 +162,15 @@ function applyHFlipUI(){
   const h = getHFlip(); // 'ltr' | 'rtl'
   reorderDips(h); // echte omkering van de volgorde
 
-  const pressed = h === 'rtl';
-  els.hflipBtn.setAttribute('aria-pressed', String(pressed));
+  const toRTL = h === 'rtl';
+  els.hflipBtn.setAttribute('aria-pressed', String(toRTL));
   const ah = els.hflipBtn.querySelector('.arrow-h');
   if(ah){
-    ah.classList.toggle('left', pressed); // ▶ of ◀
+    ah.classList.toggle('left', toRTL); // ▶ of ◀
   }
   const lab = els.hflipBtn.querySelector('.arrow-h-label');
-  if(lab) lab.textContent = pressed ? 'Rechts → Links' : 'Links → Rechts';
-  els.hflipBtn.title = pressed ? 'Spiegel naar Links' : 'Spiegel naar Rechts';
+  if(lab) lab.textContent = toRTL ? 'Rechts → Links' : 'Links → Rechts';
+  els.hflipBtn.title = toRTL ? 'Spiegel naar Links' : 'Spiegel naar Rechts';
 }
 
 function toggleOrientation(){

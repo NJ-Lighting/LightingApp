@@ -18,6 +18,9 @@
   --dip-bg:#0e1421;
   --dip-slot:#0b1220;
   --dip-slot-border:#1a2740;
+
+  /* Fine-tune uitlijning vertical ON-knop tov toggle-middenlijn */
+  --dip-orient-align-offset: 2px; /* positief = iets omlaag */
 }
 
 * { box-sizing: border-box; }
@@ -236,7 +239,7 @@ label.toggle:focus-within {
 .dips.on-down .legend.on  { top: auto; bottom: -12px; }
 .dips.on-down .legend.off { bottom: auto; top: -10px; }
 
-/* Horizontale spiegel */
+/* (niet meer nodig, maar laten staan kan geen kwaad) */
 .dips.h-rtl { flex-direction: row-reverse; }
 
 /* ── Pijlknoppen ─────────────── */
@@ -253,10 +256,10 @@ label.toggle:focus-within {
   border-right: 7px solid transparent;
 }
 .arrow.up{
-  border-top: 12px solid var(--accent);   /* ▲ = ON boven */
+  border-top: 12px solid var(--accent);   /* ▲ = toon actie: naar boven */
 }
 .arrow.down{
-  border-bottom: 12px solid var(--accent);/* ▼ = ON beneden */
+  border-bottom: 12px solid var(--accent);/* ▼ = toon actie: naar beneden */
 }
 .arrow-label { font-weight: 600; color: var(--text); }
 
@@ -275,18 +278,26 @@ label.toggle:focus-within {
 /* Plaatsing knoppen rond de DIP-bank */
 .dipwrap-row {
   display: flex;
-  align-items: center;
+  align-items: center;             /* centrum t.o.v. toggle-midden */
   justify-content: center;
   gap: 12px;
   margin: 12px 0;
 }
+
+/* Verticale ON-richting knop links naast de bank, exact op middenlijn van toggle */
 .dipwrap-row .arrow-btn.vertical {
   flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   padding: 8px;
+
+  /* BELANGRIJK: hoogte gelijk aan toggle-rail en centraal uitlijnen */
+  height: 56px;                    /* gelijk aan label.toggle height */
+  justify-content: center;
+  transform: translateY(var(--dip-orient-align-offset)); /* fijn afstellen */
 }
+
 .dipwrap-row.horizontal { justify-content: center; }
 .dipwrap-row .arrow-btn.horizontal {
   flex: 0 0 auto;
@@ -303,4 +314,7 @@ label.toggle:focus-within {
 
   .dips.on-down .toggle .knob::after { transform: translate(-50%, 6px); }
   .dips.on-down .toggle input:checked + .knob::after { transform: translate(-50%, 36px); }
+
+  /* houd de uitlijning ongeveer gelijk op touch */
+  .dipwrap-row .arrow-btn.vertical { height: 64px; }
 }
