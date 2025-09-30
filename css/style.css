@@ -83,8 +83,15 @@ button:active, .btn:active { transform: translateY(1px); }
   background: var(--panel-2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 6px 10px; color: var(--text); width: 100%;
 }
-input[type="number"] { -moz-appearance: textfield; }
-input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;           /* ✅ voeg standaard property toe (lint fix) */
+}
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 
 /* Tables */
 .table-wrap { overflow-x: auto; margin-top: 16px; }
