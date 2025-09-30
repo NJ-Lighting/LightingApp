@@ -87,7 +87,7 @@ function renderDIPs(container){
 function setSwitchesFor(addr, container){
   if(!container) return;
   const a = Math.max(1, Math.min(MAX_ADDR, Number(addr)||1));
-  let mask = a; // GEEN offset! adres == bitmask som
+  let mask = a; // adres == bitmask som
 
   DIP_VALUES.forEach(v=>{
     const input = container.querySelector(`#sw-${v}`);
@@ -106,7 +106,6 @@ function switchesValue(container){
     const input = container.querySelector(`#sw-${v}`);
     if(input?.checked) mask |= v;
   });
-  // GEEN +1; direct de som als adres
   return Math.max(1, Math.min(MAX_ADDR, mask || 1));
 }
 
@@ -137,9 +136,15 @@ function applyOrientationUI(){
   const orient = getOrient(); // 'up' | 'down'
   els.toggles.classList.toggle('on-down', orient === 'down');
 
+  // FIX: laat de pijl de HUIDIGE ON-richting aanwijzen
+  const arrowEl = els.orientBtn?.querySelector('.arrow');
+  if (arrowEl){
+    // ▲ (default) = ON boven, ▼ (.down) = ON beneden
+    arrowEl.classList.toggle('down', orient === 'down');
+  }
+
   const pressed = orient === 'down';
   els.orientBtn?.setAttribute('aria-pressed', String(pressed));
-  els.orientBtn?.querySelector('.arrow')?.classList.toggle('down', pressed);
   const lab = els.orientBtn?.querySelector('.arrow-label');
   if(lab) lab.textContent = pressed ? 'ON beneden' : 'ON boven';
   if(els.orientBtn){
@@ -184,15 +189,14 @@ export function initDipswitch(){
   renderDIPs(els.toggles);
 
   // Init UI
-  applyOrientationUI();
-  applyHFlipUI(); // zet labels & DOM-volgorde
+  applyOrientationUI(); // pijl & on-down
+  applyHFlipUI();       // labels & DOM-volgorde
 
   // Live sync adres ↔ switches
   els.address?.addEventListener('input', syncFromAddress);
 
   // Startwaarde uit state
   if(els.address){
-    // Als er ooit 512 was opgeslagen, clampen we naar 511
     const start = Math.max(1, Math.min(MAX_ADDR, state.getDip ? state.getDip() : 1));
     els.address.value = start;
     syncFromAddress();
