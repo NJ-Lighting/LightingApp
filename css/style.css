@@ -13,6 +13,11 @@
   --chip: #0e2238;
   --shadow: 0 6px 20px rgba(0,0,0,.35);
   --radius: 12px;
+
+  /* DIP thema */
+  --dip-bg:#0e1421;
+  --dip-slot:#0b1220;
+  --dip-slot-border:#1a2740;
 }
 
 * { box-sizing: border-box; }
@@ -62,6 +67,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 button, .btn, .btn-primary, .btn-ghost {
   font: inherit; padding: 8px 14px; border-radius: var(--radius);
   border: none; cursor: pointer; transition: background .2s, border-color .2s, transform .05s;
+  display:inline-flex; align-items:center; gap:8px;
 }
 button:active, .btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--accent); color: #000; }
@@ -137,7 +143,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 /* === DIP Switch Calculator Layout === */
 .dips {
-  display: flex; flex-wrap: nowrap; gap: 12px; margin-top: 16px; overflow-x: auto; padding-bottom: 6px;
+  display: flex; flex-wrap: nowrap; gap: 12px; margin-top: 16px;
+  overflow-x: auto; padding-bottom: 6px;
 }
 .dip {
   flex: 0 0 auto;
@@ -153,23 +160,26 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .dip .value { margin-top: 8px;  font-size: .85rem; color: var(--muted); }
 
 /* Toggle verticaal (up=ON, down=OFF) */
-.toggle {
+label.toggle {
   position: relative;
   display: inline-block;
   width: 28px;
   height: 56px;
   margin: 10px 0;
+  cursor: pointer;
+  transition: filter .15s ease;
 }
+label.toggle:hover { filter: brightness(1.05); }
 .toggle input { display: none; }
 
 .toggle .knob {
   position: absolute; inset: 0;
   background: linear-gradient(180deg, #102033, #0c1727);
-  border: 1px solid var(--border);
+  border: 1px solid var(--dip-slot-border);
   border-radius: 14px;
 }
 
-/* Default: ON boven */
+/* Default: ON boven (checked = boven) */
 .toggle .knob::after {
   content: "";
   position: absolute;
@@ -186,7 +196,14 @@ tr:hover td { background: rgba(255,255,255,.02); }
   transform: translate(-50%, 4px); /* naar boven bij ON */
 }
 
-/* Labels */
+/* Keyboard focus ring op de toggle */
+label.toggle:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 16px;
+}
+
+/* Labels ON/OFF */
 .legend {
   position: absolute;
   left: 50%;
@@ -208,28 +225,78 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .dips.on-down .legend.on  { top: auto;  bottom: -12px; }
 .dips.on-down .legend.off { bottom: auto; top: -10px; }
 
-/* ON-richting knop (pijl) */
+/* === Horizontale spiegel: links↔rechts === */
+.dips.h-rtl { 
+  flex-direction: row-reverse; /* spiegel de bank */
+}
+
+/* ── Pijlknoppen ───────────────────────────────────────── */
 .arrow-btn {
   display: inline-flex; align-items: center; gap: 8px;
   height: 38px;
 }
+
+/* verticale pijl (▲/▼) voor ON-richting */
 .arrow {
+  display:inline-block;
   width: 0; height: 0;
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
   border-top: 12px solid var(--accent); /* ▲ omhoog = ON boven */
   transition: transform .2s ease;
 }
-.arrow.down {
-  transform: rotate(180deg);      /* ▼ omlaag = ON beneden */
-}
+.arrow.down { transform: rotate(180deg); } /* ▼ omlaag = ON beneden */
 .arrow-label { font-weight: 600; color: var(--text); }
+
+/* horizontale pijl (▶/◀) voor links↔rechts */
+.arrow-h {
+  display:inline-block;
+  width: 0; height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 12px solid var(--accent); /* ▶ naar rechts (standaard LTR) */
+  transition: transform .2s ease;
+}
+.arrow-h.left { transform: rotate(180deg); } /* ◀ naar links (RTL) */
+.arrow-h-label { font-weight: 600; color: var(--text); }
+
+/* ── Plaatsing van knoppen rond de DIP-bank ───────────── */
+.dipwrap-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+/* de verticale (up/down) knop staat links, verticaal gestapeld */
+.dipwrap-row .arrow-btn.vertical {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: auto;
+  padding: 8px;
+}
+
+/* wrapper voor de horizontale knop onder de bank */
+.dipwrap-row.horizontal { justify-content: center; }
+.dipwrap-row .arrow-btn.horizontal {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+}
 
 /* Touch targets groter */
 @media (pointer: coarse) {
   .toggle { width: 32px; height: 64px; margin: 12px 0; }
   .toggle .knob::after { width: 24px; height: 24px; transform: translate(-50%, 36px); }
   .toggle input:checked + .knob::after { transform: translate(-50%, 6px); }
+
   /* Flip-correctie voor touch */
   .dips.on-down .toggle .knob::after { transform: translate(-50%, 6px); }
   .dips.on-down .toggle input:checked + .knob::after { transform: translate(-50%, 36px); }

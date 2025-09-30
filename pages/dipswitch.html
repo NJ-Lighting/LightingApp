@@ -5,45 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LightingApp – DIP-Switch Calculator</title>
 
-  <!-- PWA -->
+  <!-- PWA (optioneel) -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
 
-  <!-- Styles -->
+  <!-- Globale styles van de site -->
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/nav.css" />
+
+  <!-- Pagina-specifieke styles -->
+  <link rel="stylesheet" href="/css/dipswitch.css" />
 </head>
 <body>
+  <!-- Optioneel: je bestaande navigatie/header hier -->
+  <!-- <header> ... </header> -->
+
   <main class="app" id="app">
     <section class="card">
       <h2>DIP-Switch Calculator</h2>
+      <p class="muted">
+        Voer een DMX-adres (1–512) in of tik schakelaars aan. De nummertjes boven de DIP’s zijn
+        <b>1 → 9</b>. Met <i>ON-richting</i> kies je of “ON” boven of beneden zit. Met
+        <i>Horizontaal spiegelen</i> wissel je links ↔ rechts. Je keuzes worden onthouden (localStorage).
+      </p>
 
       <div class="row g8">
         <div class="field" style="max-width:200px">
           <label for="addr">DMX adres (1–512)</label>
-          <input id="addr" type="number" min="1" max="512" value="1" />
+          <input id="addr" type="number" min="1" max="512" value="1" inputmode="numeric" />
         </div>
 
-        <!-- Nieuwe ON-richting knop -->
-        <div class="field" style="max-width:220px">
-          <label aria-hidden="true">&nbsp;</label>
-          <button id="dip-orient" class="btn-ghost arrow-btn" type="button" aria-pressed="false" title="Zet ON-richting">
-            <span class="arrow" aria-hidden="true"></span>
-            <span class="arrow-label">ON beneden</span>
-          </button>
-        </div>
+        <!-- Verticale ON-richting (boven/beneden) -->
+        <button class="btn" id="dip-orient" type="button" aria-pressed="false" title="Zet ON naar beneden">
+          <span class="arrow" aria-hidden="true">↕</span>
+          <span class="arrow-label">ON beneden</span>
+        </button>
+
+        <!-- Horizontale flip (links/rechts) -->
+        <button class="btn" id="dip-hflip" type="button" aria-pressed="false" title="Spiegel naar Rechts">
+          <span class="arrow-h" aria-hidden="true">↔</span>
+          <span class="arrow-h-label">Links → Rechts</span>
+        </button>
       </div>
 
-      <div id="dipwrap" class="dips"></div>
+      <!-- Container waar de JS de 9 DIP’s in rendert -->
+      <div class="dip-wrap">
+        <div id="dipwrap" class="dips">
+          <!-- JS (renderDIPs) plaatst hier 9 items:
+               .dip > .num + label.toggle > input[type=checkbox] + .knob + .legend.on + .legend.off
+               + .value (status)
+               IDs: #sw-1, #sw-2, #sw-4, ... #sw-256 -->
+        </div>
+      </div>
     </section>
   </main>
 
-  <!-- SW + Modules -->
-  <script src="/js/sw-register.js"></script>
-  <script type="module" src="/js/nav.js"></script>
-  <script type="module">
-    import { initDipswitch } from '/js/dipswitch.page.js';
-    initDipswitch();
-  </script>
+  <!-- Pagina-logic: ES module die core/state importeert -->
+  <script type="module" src="/js/dipswitch.page.js"></script>
 </body>
 </html>
