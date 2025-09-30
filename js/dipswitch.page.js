@@ -2,11 +2,10 @@
 import { $ } from './core.js';
 import state from './state.js';
 
-// 9 bits voor adres (1..512) → 1..256 zijn de DIP-waarden (bit 0..8)
-// Terminator is een 10e schakelaar (geen invloed op adres), wordt apart gerenderd als optie.
+// 9 bits voor adres (1..512) → DIP-waarden 1..256 (bit 0..8)
 const DIP_VALUES = [1,2,4,8,16,32,64,128,256];
 
-function renderDIPs(container, withTerminator = false){
+function renderDIPs(container){
   if(!container) return;
   container.innerHTML = '';
 
@@ -28,24 +27,7 @@ function renderDIPs(container, withTerminator = false){
     container.appendChild(el);
   });
 
-  // Optionele Terminator (10) – geen invloed op adresberekening
-  if(withTerminator){
-    const id = `sw-term`;
-    const el = document.createElement('div');
-    el.className = 'dip';
-    el.innerHTML = `
-      <div class="num">T</div>
-      <label class="toggle" for="${id}">
-        <input type="checkbox" id="${id}" data-val="term" aria-label="Terminator (10)" />
-        <span class="knob" aria-hidden="true"></span>
-        <span class="legend on" aria-hidden="true">ON</span>
-        <span class="legend off" aria-hidden="true">OFF</span>
-      </label>
-      <div class="value" id="lbl-${id}">OFF</div>
-    `;
-    container.appendChild(el);
-  }
-
+  // Live sync: elke wijziging aan de switches → adres bijwerken
   container.addEventListener('change', syncFromSwitches);
 }
 
@@ -63,8 +45,6 @@ function setSwitchesFor(addr, container){
     const lbl = container.querySelector(`#lbl-sw-${v}`);
     if(lbl) lbl.textContent = on ? 'ON' : 'OFF';
   });
-
-  // Terminator wordt niet automatisch gezet door adres
 }
 
 function switchesValue(container){
@@ -91,7 +71,7 @@ function syncFromSwitches(){
   const addr1 = switchesValue(els.toggles);
   if(els.address) els.address.value = addr1;
 
-  // Labels bijwerken voor alle zichtbare toggles (incl. terminator indien aanwezig)
+  // Labels bijwerken voor alle zichtbare toggles
   const inputs = els.toggles?.querySelectorAll('input[type="checkbox"]') || [];
   inputs.forEach(inp=>{
     const id = inp.id;
@@ -102,70 +82,16 @@ function syncFromSwitches(){
   state.setDip(addr1);
 }
 
-// Terminator UI tonen/verbergen en waarde toepassen
-function applyTerminatorMode(){
-  if(!els) return;
-  const mode = els.terminator?.value || 'ignore'; // 'ignore' | 'on' | 'off'
-
-  // Herteken DIP UI met/zonder terminator switch
-  renderDIPs(els.toggles, mode !== 'ignore');
-
-  // Adres opnieuw naar switches pushen
-  syncFromAddress();
-
-  // Als terminator zichtbaar is, zet hem aan/uit volgens mode
-  if(mode !== 'ignore'){
-    const term = $('#sw-term');
-    const lbl = $('#lbl-sw-term');
-    if(term){
-      term.checked = (mode === 'on');
-      if(lbl) lbl.textContent = term.checked ? 'ON' : 'OFF';
-    }
-  }
-}
-
 export function initDipswitch(){
   els = {
-    // Aansluiten op pages/dipswitch.html
     address: $('#addr'),
     toggles: $('#dipwrap'),
-    apply: $('#calc'),
-    clear: $('#fromDip'),
-    terminator: $('#terminator'),
   };
 
-  // Eerste render: respecteer huidige terminator select (default 'ignore')
-  applyTerminatorMode();
+  renderDIPs(els.toggles);
 
-  // Knoppen
-  els.apply?.addEventListener('click', syncFromAddress);
-  els.clear?.addEventListener('click', ()=>{
-    if(els.address) els.address.value = 1;
-
-    // Zet alle adres-switches uit
-    DIP_VALUES.forEach(v=>{
-      const input = els.toggles?.querySelector?.(`#sw-${v}`);
-      if(input){ input.checked = false; }
-      const lbl = els.toggles?.querySelector?.(`#lbl-sw-${v}`);
-      if(lbl){ lbl.textContent = 'OFF'; }
-    });
-
-    // Terminator respecteert de huidige select-keuze (aan/uit of verborgen)
-    if(els.terminator?.value !== 'ignore'){
-      const term = $('#sw-term');
-      const lblt = $('#lbl-sw-term');
-      if(term){ term.checked = (els.terminator.value === 'on'); }
-      if(lblt){ lblt.textContent = term?.checked ? 'ON' : 'OFF'; }
-    }
-
-    state.setDip(1);
-  });
-
-  // Numerieke input
+  // Live sync beide kanten op
   els.address?.addEventListener('input', syncFromAddress);
-
-  // Terminator-modus (Negeer/Aan/Uit)
-  els.terminator?.addEventListener('change', applyTerminatorMode);
 
   // Startwaarde uit state (adres)
   if(els.address){
