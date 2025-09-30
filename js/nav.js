@@ -19,7 +19,6 @@ const ROUTES = {
 
 function resolve(pathLike){
   // pathLike is relatief t.o.v. project-root (zonder leading slash)
-  // Als we in /pages/ staan -> prefix '../', anders ''
   return ROOT + pathLike;
 }
 
@@ -29,20 +28,24 @@ const LINKS = [
   { label: "DIP-switch",      href: resolve(ROUTES.dip),   icon: "🎚️", meta: "Dimmers/DIP" },
   { label: "GDTF Library",    href: resolve(ROUTES.gdtf),  icon: "📁", meta: "Zoek & download" },
   { label: "About",           href: resolve(ROUTES.about), icon: "ℹ️", meta: "Over deze app" },
-  // { label: "Offline",      href: resolve('offline.html'), icon: "📵", meta: "PWA" },
 ];
 
-/** Bepaalt of link actief is */
+/** Bepaalt of link actief is (incl. root → /index.html) */
 function isActive(href){
   try{
-    const here = location.pathname; // bv: "/pages/dipswitch.html"
-    const target = new URL(href, location.origin).pathname; // normaliseer
+    const here = location.pathname; // bv: "/pages/dipswitch.html" of "/"
+    const target = new URL(href, location.origin).pathname; // "/index.html" etc.
+
+    // Normalizeer home: "/" == "/index.html"
+    if ((target.endsWith('/index.html') && (here === '/' || here.endsWith('/')))
+      || (here.endsWith('/index.html') && target === '/')) {
+      return true;
+    }
     return here === target;
   }catch{
-    // fallback: string-vergelijking
     const here = location.pathname.replace(/\\/g,'/').toLowerCase();
     const norm = href.replace(/\\/g,'/').toLowerCase();
-    return here.endsWith(norm) || here === norm;
+    return here.endsWith(norm) || here === norm || (norm.endsWith('index.html') && (here === '/' || here.endsWith('/')));
   }
 }
 
@@ -51,7 +54,11 @@ function injectHeader(){
   header.className = 'la-header';
   header.innerHTML = `
     <button class="la-hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="la-drawer">
-      <span class="bars"><span class="bar"></span></span>
+      <span class="bars">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+      </span>
     </button>
     <div class="la-brand" role="banner">
       <div class="la-logo" aria-hidden="true"></div>
@@ -104,7 +111,7 @@ function injectDrawer(){
         a.innerHTML = `
           <div class="icon" aria-hidden="true">${link.icon || "•"}</div>
           <div class="text">
-            <div class="label" style="font-weight:600">${link.label}</div>
+            <div class="label">${link.label}</div>
             <div class="meta">${link.meta || ""}</div>
           </div>
           ${isActive(link.href) ? `<span class="badge">actief</span>` : `<span></span>`}
@@ -124,7 +131,7 @@ function injectDrawer(){
   function open(){
     drawer.classList.add('open');
     backdrop.classList.add('open');
-    btn.setAttribute('aria-expanded', 'true');
+    btn?.setAttribute('aria-expanded', 'true');
     drawer.setAttribute('aria-hidden', 'false');
     const f = firstFocusable();
     setTimeout(()=> f && f.focus(), 10);
@@ -133,17 +140,17 @@ function injectDrawer(){
   function close(){
     drawer.classList.remove('open');
     backdrop.classList.remove('open');
-    btn.setAttribute('aria-expanded', 'false');
+    btn?.setAttribute('aria-expanded', 'false');
     drawer.setAttribute('aria-hidden', 'true');
-    btn.focus();
+    btn?.focus();
     document.removeEventListener('keydown', onKey);
+  }
+  function toggle(){
+    drawer.classList.contains('open') ? close() : open();
   }
   function onKey(e){
     if(e.key === 'Escape') close();
-    if(e.altKey && (e.key === 'm' || e.key === 'M')){ // Alt+M togglen
-      e.preventDefault();
-      drawer.classList.contains('open') ? close() : open();
-    }
+    if(e.altKey && (e.key === 'm' || e.key === 'M')){ e.preventDefault(); toggle(); }
     if(e.key === 'Tab'){
       const focusables = drawer.querySelectorAll('a,button,input,select,textarea,[tabindex]:not([tabindex="-1"])');
       if(!focusables.length) return;
@@ -153,8 +160,14 @@ function injectDrawer(){
     }
   }
 
-  btn.addEventListener('click', ()=> (drawer.classList.contains('open') ? close() : open()));
+  btn?.addEventListener('click', toggle);
   backdrop.addEventListener('click', close);
+
+  // ✅ Sluit bij klik op een link
+  drawer.addEventListener('click', (e)=>{
+    const a = e.target.closest('a.la-link');
+    if(a){ close(); }
+  });
 
   // Swipe-to-close (mobiel)
   let startX=null;
@@ -170,10 +183,9 @@ function injectDrawer(){
     open, close, render,
     setLinks(list){
       if(Array.isArray(list)){
-        // overschrijf defensief alleen bekende velden
-        for (let i=0; i<list.length; i++){
-          LINKS[i] = { ...LINKS[i], ...list[i] };
-        }
+        // overschrijf defensief velden die bestaan; behoud icons/labels/meta als niet meegegeven
+        const next = list.map((it, i) => ({ ...LINKS[i], ...it }));
+        LINKS.splice(0, LINKS.length, ...next);
         render();
       }
     }
@@ -182,16 +194,18 @@ function injectDrawer(){
 
 // Boot + CSS fallback (als iemand nav.css vergeet te linken)
 (function boot(){
-  // Check of nav.css al gelinkt is; zowel "css/nav.css" als "../css/nav.css" ondersteunen
+  // Check of nav.css al gelinkt is
   const hasCss = [...document.styleSheets].some(s => {
-    const href = (s.href || '').toLowerCase();
-    return href.endsWith('/css/nav.css') || href.endsWith('css/nav.css');
+    try{
+      const href = (s.href || '').toLowerCase();
+      return href.endsWith('/css/nav.css') || href.endsWith('css/nav.css');
+    }catch{
+      return false;
+    }
   });
-
   if(!hasCss){
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    // Als we in /pages/ zitten → '../css/nav.css', anders 'css/nav.css'
     link.href = (IN_PAGES_DIR ? '../' : '') + 'css/nav.css';
     document.head.appendChild(link);
   }

@@ -9,20 +9,62 @@
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
 
-  <!-- Globale styles van de site -->
+  <!-- Globale styles -->
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/nav.css" />
-
-  <!-- Pagina-specifieke styles (zit bij jou óók in style.css, dit is prima) -->
   <link rel="stylesheet" href="/css/dipswitch.css" />
 </head>
 <body>
+  <!-- Header / Navbar -->
+  <header class="site-header" role="banner">
+    <div class="nav-bar">
+      <a class="brand" href="/">
+        <span class="brand-dot" aria-hidden="true"></span>
+        LightingApp
+      </a>
+
+      <!-- Desktop menu -->
+      <nav class="nav-desktop" aria-label="Hoofdmenu">
+        <a href="/index.html">Home</a>
+        <a href="/dipswitch.html" aria-current="page">DIP Calc</a>
+        <a href="/tools.html">Tools</a>
+        <a href="/about.html">Over</a>
+      </nav>
+
+      <!-- Hamburger -->
+      <button class="hamburger" id="nav-toggle"
+              aria-label="Menu openen"
+              aria-controls="nav-drawer"
+              aria-expanded="false">
+        <span class="hamburger-box" aria-hidden="true">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </span>
+      </button>
+    </div>
+
+    <!-- Mobile drawer -->
+    <div class="nav-drawer" id="nav-drawer" aria-hidden="true">
+      <nav class="nav-mobile" aria-label="Mobiel menu">
+        <a href="/index.html">Home</a>
+        <a href="/dipswitch.html" aria-current="page">DIP Calc</a>
+        <a href="/tools.html">Tools</a>
+        <a href="/about.html">Over</a>
+      </nav>
+    </div>
+
+    <!-- Overlay -->
+    <div class="nav-overlay" id="nav-overlay" hidden></div>
+  </header>
+
   <main class="app" id="app">
     <section class="card">
       <h2>DIP-Switch Calculator</h2>
       <p class="muted">
-        Voer een DMX-adres (1–512) in of tik schakelaars aan. De labels boven de switches lopen
-        <b>1→9</b> bij links→rechts en <b>9→1</b> bij rechts→links. Je keuzes worden onthouden.
+        Voer een DMX-adres (1–511) in of tik schakelaars aan. De nummertjes zijn <b>1 → 9</b> bij links→rechts
+        en <b>9 → 1</b> bij rechts→links. Met <i>ON-richting</i> kies je of “ON” boven of beneden zit.
+        Je keuzes worden onthouden (localStorage).
       </p>
 
       <div class="row g8">
@@ -37,13 +79,11 @@
         <!-- Verticale ON-richting (boven/beneden) links naast de bank -->
         <button class="btn arrow-btn vertical" id="dip-orient" type="button" aria-pressed="false" title="Zet ON naar beneden">
           <span class="arrow" aria-hidden="true"></span>
-          <span class="arrow-label">ON beneden</span>
+          <span class="arrow-label">ON boven</span>
         </button>
 
         <!-- De 9 DIP’s -->
-        <div id="dipwrap" class="dips">
-          <!-- JS rendert hier 9 items -->
-        </div>
+        <div id="dipwrap" class="dips"></div>
       </div>
 
       <!-- Rij met horizontale flip KNOP onder de bank, gecentreerd -->
@@ -56,7 +96,8 @@
     </section>
   </main>
 
-  <!-- Pagina-logic: ES module die core/state importeert -->
+  <!-- Scripts -->
+  <script type="module" src="/js/nav.js"></script>
   <script type="module" src="/js/dipswitch.page.js"></script>
 </body>
 </html>

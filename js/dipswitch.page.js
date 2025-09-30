@@ -134,21 +134,24 @@ function syncFromSwitches(){
 /* ---------- UI ---------- */
 function applyOrientationUI(){
   const orient = getOrient(); // 'up' | 'down'
-  els.toggles.classList.toggle('on-down', orient === 'down');
+  const isDown = orient === 'down';
 
-  // FIX: laat de pijl de HUIDIGE ON-richting aanwijzen
+  // switch-visuals
+  els.toggles.classList.toggle('on-down', isDown);
+
+  // pijltje toont HUIDIGE richting: up => ▲, down => ▼
   const arrowEl = els.orientBtn?.querySelector('.arrow');
   if (arrowEl){
-    // ▲ (default) = ON boven, ▼ (.down) = ON beneden
-    arrowEl.classList.toggle('down', orient === 'down');
+    arrowEl.classList.remove('up','down');
+    arrowEl.classList.add(isDown ? 'down' : 'up');
   }
 
-  const pressed = orient === 'down';
-  els.orientBtn?.setAttribute('aria-pressed', String(pressed));
+  // knoptekst + title
+  els.orientBtn?.setAttribute('aria-pressed', String(isDown));
   const lab = els.orientBtn?.querySelector('.arrow-label');
-  if(lab) lab.textContent = pressed ? 'ON beneden' : 'ON boven';
+  if(lab) lab.textContent = isDown ? 'ON beneden' : 'ON boven';
   if(els.orientBtn){
-    els.orientBtn.title = pressed ? 'Zet ON naar boven' : 'Zet ON naar beneden';
+    els.orientBtn.title = isDown ? 'Zet ON naar boven' : 'Zet ON naar beneden';
   }
 }
 
@@ -158,7 +161,10 @@ function applyHFlipUI(){
 
   const pressed = h === 'rtl';
   els.hflipBtn?.setAttribute('aria-pressed', String(pressed));
-  els.hflipBtn?.querySelector('.arrow-h')?.classList.toggle('left', pressed);
+  const ah = els.hflipBtn?.querySelector('.arrow-h');
+  if(ah){
+    ah.classList.toggle('left', pressed); // ▶ of ◀
+  }
   const lab = els.hflipBtn?.querySelector('.arrow-h-label');
   if(lab) lab.textContent = pressed ? 'Rechts → Links' : 'Links → Rechts';
   if(els.hflipBtn){
@@ -185,6 +191,10 @@ export function initDipswitch(){
     orientBtn: $('#dip-orient'),
     hflipBtn:  $('#dip-hflip'),
   };
+
+  // default 1e keer expliciet op 'up' zetten als er niets in LS staat
+  if (!localStorage.getItem(LS_KEY_ORIENT)) setOrient('up');
+  if (!localStorage.getItem(LS_KEY_HFLIP)) setHFlip('ltr');
 
   renderDIPs(els.toggles);
 
