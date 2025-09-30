@@ -70,6 +70,18 @@ button, .btn, .btn-primary, .btn-ghost {
   display:inline-flex; align-items:center; gap:8px;
 }
 button:active, .btn:active { transform: translateY(1px); }
+
+/* ➜ Donkere basis-knop (fix voor witte knoppen) */
+.btn{
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn:hover{
+  background: var(--panel);
+  border-color: var(--accent-2);
+}
+
 .btn-primary { background: var(--accent); color: #000; }
 .btn-primary:hover { background: var(--accent-2); }
 .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
@@ -225,9 +237,9 @@ label.toggle:focus-within {
 .dips.on-down .legend.on  { top: auto;  bottom: -12px; }
 .dips.on-down .legend.off { bottom: auto; top: -10px; }
 
-/* === Horizontale spiegel: links↔rechts === */
+/* === Horizontale spiegel (niet meer nodig met DOM-reorder, maar onschadelijk) === */
 .dips.h-rtl { 
-  flex-direction: row-reverse; /* spiegel de bank */
+  flex-direction: row-reverse;
 }
 
 /* ── Pijlknoppen ───────────────────────────────────────── */
@@ -236,7 +248,6 @@ label.toggle:focus-within {
   height: 38px;
 }
 
-/* verticale pijl (▲/▼) voor ON-richting */
 .arrow {
   display:inline-block;
   width: 0; height: 0;
@@ -248,7 +259,6 @@ label.toggle:focus-within {
 .arrow.down { transform: rotate(180deg); } /* ▼ omlaag = ON beneden */
 .arrow-label { font-weight: 600; color: var(--text); }
 
-/* horizontale pijl (▶/◀) voor links↔rechts */
 .arrow-h {
   display:inline-block;
   width: 0; height: 0;
@@ -269,7 +279,6 @@ label.toggle:focus-within {
   margin: 12px 0;
 }
 
-/* de verticale (up/down) knop staat links, verticaal gestapeld */
 .dipwrap-row .arrow-btn.vertical {
   flex: 0 0 auto;
   display: flex;
@@ -281,7 +290,6 @@ label.toggle:focus-within {
   padding: 8px;
 }
 
-/* wrapper voor de horizontale knop onder de bank */
 .dipwrap-row.horizontal { justify-content: center; }
 .dipwrap-row .arrow-btn.horizontal {
   flex: 0 0 auto;

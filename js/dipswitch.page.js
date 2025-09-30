@@ -2,8 +2,9 @@
 import { $ } from './core.js';
 import state from './state.js';
 
-// 9 bits voor adres (1..512) → DIP-waarden 1..256 (bit 0..8)
+// 9 bits voor adres (1..511) → DIP-gewichten 1..256 (bit 0..8)
 const DIP_VALUES = [1,2,4,8,16,32,64,128,256];
+const MAX_ADDR = 511;
 
 const LS_KEY_ORIENT = 'lightingapp.dip.orient'; // 'up' | 'down'  (ON-richting)
 const LS_KEY_HFLIP  = 'lightingapp.dip.hflip';  // 'ltr' | 'rtl' (links/rechts)
@@ -17,12 +18,11 @@ function setHFlip(v){ localStorage.setItem(LS_KEY_HFLIP, v === 'rtl' ? 'rtl' : '
 let els = null;
 let _boundChangeHandler = null;
 
-/* ---------- Nummerlabels ---------- */
+/* ---------- Helpers voor nummerlabels ---------- */
 function numberLabelForIndex(i){
   const h = getHFlip();
   return (h === 'rtl') ? (9 - i) : (i + 1);
 }
-
 function updateNumbers(){
   if(!els?.toggles) return;
   const dips = els.toggles.querySelectorAll('.dip');
@@ -34,7 +34,7 @@ function updateNumbers(){
   });
 }
 
-/* ---------- DOM volgorde omkeren i.p.v. alleen flex-direction ---------- */
+/* ---------- DOM volgorde omkeren (echte reorder) ---------- */
 function reorderDips(direction /* 'ltr' | 'rtl' */){
   if(!els?.toggles) return;
   const wrap = els.toggles;
@@ -61,7 +61,7 @@ function renderDIPs(container){
     const id = `sw-${bitVal}`;
     const el = document.createElement('div');
     el.className = 'dip';
-    el.dataset.idx = String(i); // originele index om te kunnen sorteren
+    el.dataset.idx = String(i);
     el.innerHTML = `
       <div class="num">${numberLabelForIndex(i)}</div>
       <label class="toggle" for="${id}">
@@ -75,7 +75,6 @@ function renderDIPs(container){
     container.appendChild(el);
   });
 
-  // Eén change-listener op de container
   if (_boundChangeHandler) {
     container.removeEventListener('change', _boundChangeHandler);
   }
@@ -83,16 +82,17 @@ function renderDIPs(container){
   container.addEventListener('change', _boundChangeHandler);
 }
 
-// Zet switches naar adres (1..512)
+/* ---------- DMX mapping: som(gewichten) = adres ---------- */
+// Zet switches naar adres (1..511)
 function setSwitchesFor(addr, container){
   if(!container) return;
-  const a = Math.max(1, Math.min(512, Number(addr)||1));
-  const bitsTarget = a - 1; // 0..511
+  const a = Math.max(1, Math.min(MAX_ADDR, Number(addr)||1));
+  let mask = a; // GEEN offset! adres == bitmask som
 
   DIP_VALUES.forEach(v=>{
     const input = container.querySelector(`#sw-${v}`);
     if(!input) return;
-    const on = (bitsTarget & v) === v;
+    const on = (mask & v) === v;
     input.checked = on;
     const lbl = container.querySelector(`#lbl-sw-${v}`);
     if(lbl) lbl.textContent = on ? 'ON' : 'OFF';
@@ -106,12 +106,13 @@ function switchesValue(container){
     const input = container.querySelector(`#sw-${v}`);
     if(input?.checked) mask |= v;
   });
-  return (mask & 0x1FF) + 1; // 9 bits + offset 1
+  // GEEN +1; direct de som als adres
+  return Math.max(1, Math.min(MAX_ADDR, mask || 1));
 }
 
 function syncFromAddress(){
   if(!els) return;
-  const a = Math.max(1, Math.min(512, Number(els.address?.value)||1));
+  const a = Math.max(1, Math.min(MAX_ADDR, Number(els.address?.value)||1));
   setSwitchesFor(a, els.toggles);
   state.setDip(a);
 }
@@ -121,7 +122,6 @@ function syncFromSwitches(){
   const addr1 = switchesValue(els.toggles);
   if(els.address) els.address.value = addr1;
 
-  // Labels bijwerken (onder elk knopje)
   const inputs = els.toggles?.querySelectorAll('input[type="checkbox"]') || [];
   inputs.forEach(inp=>{
     const id = inp.id;
@@ -149,10 +149,7 @@ function applyOrientationUI(){
 
 function applyHFlipUI(){
   const h = getHFlip(); // 'ltr' | 'rtl'
-
-  // NIET meer vertrouwen op flex row-reverse (dat schoof alleen de bank naar rechts):
-  // we herordenen de DOM zodat de volgorde écht omdraait.
-  reorderDips(h);
+  reorderDips(h); // echte omkering van de volgorde
 
   const pressed = h === 'rtl';
   els.hflipBtn?.setAttribute('aria-pressed', String(pressed));
@@ -186,16 +183,18 @@ export function initDipswitch(){
 
   renderDIPs(els.toggles);
 
-  // Init verticale ON-richting + horizontale spiegeling
+  // Init UI
   applyOrientationUI();
-  applyHFlipUI(); // zet ook meteen de juiste 1→9 / 9→1 labels en DOM-volgorde
+  applyHFlipUI(); // zet labels & DOM-volgorde
 
   // Live sync adres ↔ switches
   els.address?.addEventListener('input', syncFromAddress);
 
-  // Startwaarde uit state (adres)
+  // Startwaarde uit state
   if(els.address){
-    els.address.value = state.getDip();
+    // Als er ooit 512 was opgeslagen, clampen we naar 511
+    const start = Math.max(1, Math.min(MAX_ADDR, state.getDip ? state.getDip() : 1));
+    els.address.value = start;
     syncFromAddress();
   }
 
@@ -204,9 +203,9 @@ export function initDipswitch(){
   els.hflipBtn?.addEventListener('click', toggleHFlip);
 
   // Cross-tab sync
-  state.onMessage(msg=>{
+  state.onMessage?.(msg=>{
     if(msg?.type==='dip:update'){
-      const v = msg.payload;
+      const v = Math.max(1, Math.min(MAX_ADDR, msg.payload));
       if(els.address) els.address.value = v;
       setSwitchesFor(v, els.toggles);
     }
@@ -215,5 +214,3 @@ export function initDipswitch(){
 
 /* ---------- start de pagina ---------- */
 initDipswitch();
-// of, als je expliciet wilt wachten op DOM:
-// document.addEventListener('DOMContentLoaded', initDipswitch);
