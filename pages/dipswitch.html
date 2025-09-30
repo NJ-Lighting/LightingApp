@@ -11,52 +11,11 @@
 
   <!-- Globale styles -->
   <link rel="stylesheet" href="/css/style.css" />
-  <link rel="stylesheet" href="/css/nav.css" />
+  <!-- Pagina-specifieke styles -->
   <link rel="stylesheet" href="/css/dipswitch.css" />
 </head>
 <body>
-  <!-- Header / Navbar -->
-  <header class="site-header" role="banner">
-    <div class="nav-bar">
-      <a class="brand" href="/">
-        <span class="brand-dot" aria-hidden="true"></span>
-        LightingApp
-      </a>
-
-      <!-- Desktop menu -->
-      <nav class="nav-desktop" aria-label="Hoofdmenu">
-        <a href="/index.html">Home</a>
-        <a href="/dipswitch.html" aria-current="page">DIP Calc</a>
-        <a href="/tools.html">Tools</a>
-        <a href="/about.html">Over</a>
-      </nav>
-
-      <!-- Hamburger -->
-      <button class="hamburger" id="nav-toggle"
-              aria-label="Menu openen"
-              aria-controls="nav-drawer"
-              aria-expanded="false">
-        <span class="hamburger-box" aria-hidden="true">
-          <span class="hamburger-line"></span>
-          <span class="hamburger-line"></span>
-          <span class="hamburger-line"></span>
-        </span>
-      </button>
-    </div>
-
-    <!-- Mobile drawer -->
-    <div class="nav-drawer" id="nav-drawer" aria-hidden="true">
-      <nav class="nav-mobile" aria-label="Mobiel menu">
-        <a href="/index.html">Home</a>
-        <a href="/dipswitch.html" aria-current="page">DIP Calc</a>
-        <a href="/tools.html">Tools</a>
-        <a href="/about.html">Over</a>
-      </nav>
-    </div>
-
-    <!-- Overlay -->
-    <div class="nav-overlay" id="nav-overlay" hidden></div>
-  </header>
+  <!-- Globale header + hamburger wordt geïnjecteerd door /js/nav.js -->
 
   <main class="app" id="app">
     <section class="card">
