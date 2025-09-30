@@ -85,7 +85,7 @@ button:active, .btn:active { transform: translateY(1px); }
 }
 input[type="number"] {
   -moz-appearance: textfield;
-  appearance: textfield;           /* ✅ voeg standaard property toe (lint fix) */
+  appearance: textfield;           /* lint fix */
 }
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {
@@ -143,10 +143,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .dip {
   flex: 0 0 auto;
   display: flex; flex-direction: column; align-items: center;
-  padding: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 8px 18px; /* meer ademruimte t.o.v. labels */
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius);
+  min-width: 56px; /* voorkomt knellen bij grotere fonts */
 }
-.dip .num { font-size: .9rem; margin-bottom: 4px; }
-.dip .value { margin-top: 4px; font-size: .85rem; color: var(--muted); }
+.dip .num,
+.dip .value,
+.legend { line-height: 1; } /* compacter zodat niks uitsteekt */
+
+.dip .num   { font-size: .9rem; margin-bottom: 8px; }
+.dip .value { margin-top: 8px;  font-size: .85rem; color: var(--muted); }
 
 /* === Toggle switches: verticaal (up=ON, down=OFF) === */
 .toggle {
@@ -154,7 +160,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
   display: inline-block;
   width: 28px;
   height: 56px;  /* hoge baan */
-  margin: 4px 0;
+  margin: 10px 0; /* extra marge zodat labels niet botsen */
 }
 .toggle input { display: none; }
 
@@ -191,8 +197,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
   font-size: .7rem;
   pointer-events: none;
 }
-.legend.on  { top: -16px;  color: var(--ok); }
-.legend.off { bottom: -18px; color: var(--err); }
+.legend.on  { top: -10px;  color: var(--ok); }  /* dichter bij de baan */
+.legend.off { bottom: -12px; color: var(--err); }/* dichter bij de baan */
 
 /* ==== Logo styling ==== */
 .logo {
@@ -204,7 +210,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
 
 /* (optioneel) grotere targets op touch devices */
 @media (pointer: coarse) {
-  .toggle { width: 32px; height: 64px; }
+  .toggle { width: 32px; height: 64px; margin: 12px 0; }
   .toggle .knob::after { width: 24px; height: 24px; transform: translate(-50%, 36px); }
   .toggle input:checked + .knob::after { transform: translate(-50%, 6px); }
+  .legend.on  { top: -12px; }
+  .legend.off { bottom: -14px; }
 }
