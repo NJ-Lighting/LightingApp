@@ -4,22 +4,35 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LightingApp – GDTF Share</title>
+
+  <!-- PWA -->
   <link rel="manifest" href="../manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
+
+  <!-- Styles -->
   <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/nav.css" />
 </head>
 <body>
   <main class="app" id="app">
+    <!-- Header wordt door renderHeader() geïnjecteerd -->
     <header class="header"></header>
 
     <section class="card">
       <h2>GDTF Share</h2>
 
+      <!-- Login -->
       <div class="row">
-        <div class="field"><label>Username</label><input id="gdtf-user" autocomplete="username" /></div>
-        <div class="field"><label>Password</label><input id="gdtf-pass" type="password" autocomplete="current-password" /></div>
         <div class="field">
-          <label>&nbsp;</label>
+          <label for="gdtf-user">Username</label>
+          <input id="gdtf-user" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="gdtf-pass">Password</label>
+          <input id="gdtf-pass" type="password" autocomplete="current-password" />
+        </div>
+        <div class="field">
+          <label aria-hidden="true">&nbsp;</label>
           <div class="row">
             <button class="btn-primary" id="gdtf-login">Login</button>
             <button class="btn-ghost" id="gdtf-logout">Logout</button>
@@ -29,11 +42,12 @@
 
       <div class="note" id="gdtf-status">Not logged in.</div>
 
+      <!-- Search / filter -->
       <div class="row" style="align-items:flex-end">
         <button id="gdtf-getlist" class="btn-primary" disabled>Get List</button>
 
         <div class="field">
-          <label>Manufacturer</label>
+          <label for="gdtf-manu-input">Manufacturer</label>
           <div class="typeahead">
             <input id="gdtf-manu-input" disabled />
             <div id="gdtf-manu-list" class="ta-list"></div>
@@ -41,7 +55,7 @@
         </div>
 
         <div class="field">
-          <label>Fixture</label>
+          <label for="gdtf-fixture-input">Fixture</label>
           <div class="typeahead ta-disabled">
             <input id="gdtf-fixture-input" disabled />
             <div id="gdtf-fixture-list" class="ta-list"></div>
@@ -51,8 +65,10 @@
         <span class="muted" id="gdtf-count"></span>
       </div>
 
+      <!-- Alphabetical filter -->
       <div class="chips" id="gdtf-alpha"></div>
 
+      <!-- Table -->
       <div class="table-wrap">
         <table id="gdtf-table">
           <thead>
@@ -72,6 +88,7 @@
     </section>
   </main>
 
+  <!-- SW + Modules -->
   <script src="../js/sw-register.js"></script>
   <script type="module">
     import { renderHeader } from '../js/nav.js';

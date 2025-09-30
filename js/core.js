@@ -1,38 +1,136 @@
-export const $  = (sel, root=document) => root.querySelector(sel);
-export const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-export const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+export const $  = (sel, root = document) => root?.querySelector?.(sel);
+export const $$ = (sel, root = document) => Array.from(root?.querySelectorAll?.(sel) || []);
+export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 export const UNIVERSE_SIZE = 512;
 
-export function toast(msg,type='info'){
-  const colors = {success:'#16a34a', error:'#ef4444', info:'#1f2a3a', warning:'#f59e0b'};
-  const fg = {success:'#bbf7d0', error:'#fecaca', info:'#e7eaf0', warning:'#fff7ed'};
-  const d = document.createElement('div');
-  d.textContent = msg;
+/**
+ * Toast melding
+ * @param {string} msg
+ * @param {'success'|'error'|'info'|'warning'} [type='info']
+ * @param {number} [duration=1800] - duur in ms
+ */
+export function toast(msg, type = 'info', duration = 1800) {
+  const colors = { success: '#16a34a', error: '#ef4444', info: '#1f2a3a', warning: '#f59e0b' };
+  const fg     = { success: '#bbf7d0', error: '#fecaca', info: '#e7eaf0', warning: '#fff7ed' };
+
+  // Zorg voor één container die toasts stapelt
+  let container = document.getElementById('la-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'la-toast-container';
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
+    container.style.cssText = `
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      z-index: 1000; display: flex; flex-direction: column; gap: 8px;
+      align-items: center; pointer-events: none;
+    `;
+    document.body.appendChild(container);
+  }
+
   const c = colors[type] || colors.info;
   const fgc = fg[type] || fg.info;
+
+  const d = document.createElement('div');
+  d.textContent = String(msg ?? '');
   d.style.cssText = `
-    position:fixed; left:50%; transform:translateX(-50%); bottom:20px; z-index:1000;
     background:#0e1a2c; border:1px solid ${c}; color:${fgc};
-    padding:10px 14px; border-radius:12px; box-shadow:var(--shadow); font-weight:600; letter-spacing:.2px;
+    padding:10px 14px; border-radius:12px; box-shadow:var(--shadow);
+    font-weight:600; letter-spacing:.2px; max-width: min(90vw, 520px);
+    pointer-events: auto;
   `;
-  document.body.appendChild(d);
-  setTimeout(()=> d.remove(), 1800);
+  container.appendChild(d);
+
+  const timer = setTimeout(() => {
+    d.remove();
+    // container opruimen als leeg
+    if (!container.childElementCount) container.remove();
+  }, Math.max(600, Number(duration) || 1800));
+
+  // sluit op klik
+  d.addEventListener('click', () => {
+    clearTimeout(timer);
+    d.remove();
+    if (!container.childElementCount) container.remove();
+  }, { once: true });
 }
 
-export function dlBlob(filename, blob){
+/**
+ * Download een Blob als file (met net memory-cleanup)
+ */
+export function dlBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
+  a.href = url;
+  a.download = filename || 'download';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // revoke op microtask zodat click klaar is
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-export function copyText(t){
-  return navigator.clipboard.writeText(t);
+/**
+ * Kopieer tekst naar klembord met fallback
+ * @returns {Promise<void>}
+ */
+export function copyText(t) {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(String(t ?? ''));
+  }
+  // Fallback voor oudere browsers / http context
+  return new Promise((resolve, reject) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = String(t ?? '');
+      // minimal invasiveness
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      ta.setAttribute('readonly', 'true');
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand('copy');
+      ta.remove();
+      ok ? resolve() : reject(new Error('copy command failed'));
+    } catch (e) {
+      reject(e);
+    }
+  });
 }
 
-export function escapeHTML(s){ return (s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-export function shortURL(u){ try{ const {host,pathname} = new URL(u); return host + pathname.replace(/\/$/,''); }catch{return u} }
-export function isFormFocused(){
+/**
+ * Escape HTML
+ */
+export function escapeHTML(s) {
+  return (s ?? '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}
+
+/**
+ * Korte URL-weergave (host + pathname)
+ */
+export function shortURL(u) {
+  try {
+    const { host, pathname } = new URL(u);
+    return host + pathname.replace(/\/$/, '');
+  } catch {
+    return u;
+  }
+}
+
+/**
+ * Of een invoerveld focus heeft (incl. contenteditable)
+ */
+export function isFormFocused() {
   const el = document.activeElement;
-  return el && ['INPUT','SELECT','TEXTAREA'].includes(el.tagName);
+  if (!el) return false;
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) return true;
+  // contenteditable = true
+  // @ts-ignore - property bestaat runtime
+  if (el.isContentEditable) return true;
+  return false;
 }

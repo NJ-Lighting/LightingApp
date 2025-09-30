@@ -12,6 +12,7 @@ function universeColor(u){
 }
 
 function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placeholder}){
+  if(!input || !listEl) return { refresh: ()=>{}, close: ()=>{} };
   let items=[]; let open=false; let activeIndex=-1; const MAX=20;
   input.setAttribute('autocomplete','off');
   input.setAttribute('role','combobox');
@@ -22,7 +23,13 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
   function openList(){ open=true; listEl.style.display='block'; input.setAttribute('aria-expanded','true'); }
   function render(){
     listEl.innerHTML='';
-    if(items.length===0){ const d=document.createElement('div'); d.className='ta-empty'; d.textContent='No matches'; listEl.appendChild(d); return; }
+    if(items.length===0){
+      const d=document.createElement('div');
+      d.className='ta-empty';
+      d.textContent='No matches';
+      listEl.appendChild(d);
+      return;
+    }
     items.forEach((it,i)=>{
       const div=document.createElement('div');
       div.className='ta-item'; div.setAttribute('role','option'); div.dataset.index=i;
@@ -37,16 +44,17 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
   function updateActive(){
     $$('.ta-item', listEl).forEach((n,ix)=> n.setAttribute('aria-selected', ix===activeIndex ? 'true':'false'));
     const el = listEl.querySelector(`.ta-item[data-index="${activeIndex}"]`);
-    if(el){ const r = el.getBoundingClientRect(); const p = listEl.getBoundingClientRect();
+    if(el){
+      const r = el.getBoundingClientRect(); const p = listEl.getBoundingClientRect();
       if(r.bottom > p.bottom) listEl.scrollTop += (r.bottom - p.bottom);
       if(r.top < p.top) listEl.scrollTop -= (p.top - r.top);
     }
   }
-  function choose(i){ const val = items[i]; if(!val) return; onChoose(val, input, close); }
+  function choose(i){ const val = items[i]; if(!val) return; onChoose?.(val, input, close); }
   function toStr(it){ return typeof it==='string' ? it : (it.label || it.value || ''); }
   function doFilter(){
     const q = input.value.trim().toLowerCase();
-    const src = getItems();
+    const src = (getItems?.() || []);
     const starts = src.filter(s=> toStr(s).toLowerCase().startsWith(q));
     const rest   = src.filter(s=> !toStr(s).toLowerCase().startsWith(q) && toStr(s).toLowerCase().includes(q));
     items = (q? starts.concat(rest) : src).slice(0, MAX);
@@ -94,7 +102,6 @@ function calcAddressing({start, universe, footprint, quantity, gap, resetMode, n
 /* ---------- Main ---------- */
 export function initAddressing(){
   const els = {
-    // Patch plan widgets
     fxInput: $('#addr-fixture-input'),
     fxList:  $('#addr-fixture-list'),
     fxQty:   $('#addr-fixture-qty'),
@@ -103,7 +110,6 @@ export function initAddressing(){
     planTable:$('#addr-plan-table tbody'),
     planClear:$('#addr-plan-clear'),
 
-    // legacy single-fixture controls (fallback)
     start: $('#addr-start'),
     univ: $('#addr-universe'),
     foot: $('#addr-footprint'),
@@ -111,15 +117,21 @@ export function initAddressing(){
     gap: $('#addr-gap'),
     mode: $('#addr-mode'),
 
-    // output + actions
     tbody: $('#addr-table tbody'),
     gen: $('#addr-generate'),
     exp: $('#addr-export'),
     copy: $('#addr-copy'),
   };
 
+  if(!els.tbody){
+    console.warn('[Addressing] Missing required table body #addr-table tbody');
+    return;
+  }
+
   // --- library dataset for typeahead
-  const fixturesLib = () => state.getLibrary();
+  const fixturesLib = () => {
+    try { return state.getLibrary() || []; } catch { return []; }
+  };
 
   // selection buffer (what’s in the typeahead input right now)
   let selectedBuf = null; // {brand, model, mode, footprint}
@@ -142,7 +154,7 @@ export function initAddressing(){
       const labelLeft = `${(x.brand||'').trim()} ${(x.model||'').trim()}`.trim();
       const labelRight = `${x.mode||'–'} • ${x.footprint??'?'}ch`;
       return {
-        value: `${x.brand} ${x.model}`,
+        value: `${x.brand||''} ${x.model||''}`.trim(),
         meta: { mode: x.mode||'', footprint: x.footprint||null, brand:x.brand||'', model:x.model||'' },
         label: `${labelLeft} — ${labelRight}`,
         raw: x
@@ -165,35 +177,36 @@ export function initAddressing(){
         mode:  it.raw.mode||'',
         footprint: Number(it.raw.footprint)||null
       };
-      input.value = `${selectedBuf.brand} ${selectedBuf.model}`;
-      close();
+      if(input) input.value = `${selectedBuf.brand} ${selectedBuf.model}`.trim();
+      close?.();
     },
     placeholder: 'Search brand, model, mode…'
   });
 
   function renderPlan(){
     const plan = planFromState();
-    els.planWrap.style.display = plan.length ? 'block' : 'none';
+    if(els.planWrap) els.planWrap.style.display = plan.length ? 'block' : 'none';
+    if(!els.planTable) return;
     els.planTable.innerHTML = '';
     plan.forEach((p, idx)=>{
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${idx+1}</td>
-        <td>${escapeHTML(`${p.brand} ${p.model}`.trim())}</td>
+        <td>${escapeHTML(`${p.brand||''} ${p.model||''}`.trim())}</td>
         <td>${escapeHTML(p.mode||'–')}</td>
         <td>${p.footprint??'?'} ch</td>
         <td>
           <div class="row" style="gap:6px; align-items:center">
-            <button class="btn-ghost" data-act="dec" data-i="${idx}">–</button>
-            <input data-i="${idx}" data-role="qty" value="${p.quantity}" type="number" min="1" style="width:64px" />
-            <button class="btn-ghost" data-act="inc" data-i="${idx}">+</button>
+            <button class="btn-ghost" data-act="dec" data-i="${idx}" type="button">–</button>
+            <input data-i="${idx}" data-role="qty" value="${Math.max(1, Number(p.quantity)||1)}" type="number" min="1" style="width:64px" />
+            <button class="btn-ghost" data-act="inc" data-i="${idx}" type="button">+</button>
           </div>
         </td>
         <td>
           <div class="row" style="gap:6px; align-items:center">
-            <button class="btn-ghost" data-act="up" data-i="${idx}">↑</button>
-            <button class="btn-ghost" data-act="down" data-i="${idx}">↓</button>
-            <button data-act="del" data-i="${idx}">Remove</button>
+            <button class="btn-ghost" data-act="up" data-i="${idx}"   type="button">↑</button>
+            <button class="btn-ghost" data-act="down" data-i="${idx}" type="button">↓</button>
+            <button data-act="del" data-i="${idx}" type="button">Remove</button>
           </div>
         </td>
       `;
@@ -205,7 +218,6 @@ export function initAddressing(){
     if(!sel){ toast('Select a fixture from Library first','warning'); return; }
     const q = Math.max(1, Number(qty)||1);
     const plan = planFromState();
-    // Merge if exactly same type+mode+footprint
     const ix = plan.findIndex(p => p.brand===sel.brand && p.model===sel.model && p.mode===sel.mode && (p.footprint||null)===(sel.footprint||null));
     if(ix>=0){ plan[ix].quantity += q; }
     else{
@@ -222,12 +234,9 @@ export function initAddressing(){
     toast('Added to plan','success');
   }
 
-  els.fxAdd.addEventListener('click', ()=>{
-    addToPlan(selectedBuf, els.fxQty.value);
-    // keep selection for rapid repeat, or clear? We'll keep.
-  });
+  els.fxAdd?.addEventListener('click', ()=> addToPlan(selectedBuf, els.fxQty?.value));
 
-  els.planClear.addEventListener('click', ()=>{
+  els.planClear?.addEventListener('click', ()=>{
     savePlan([]);
     renderPlan();
   });
@@ -237,11 +246,13 @@ export function initAddressing(){
     const btn = e.target.closest('button'); if(!btn) return;
     const i = Number(btn.dataset.i);
     const plan = planFromState();
+    if(!Number.isInteger(i) || i<0 || i>=plan.length) return;
+
     if(btn.dataset.act==='del'){ plan.splice(i,1); savePlan(plan); renderPlan(); return; }
     if(btn.dataset.act==='up' && i>0){ const t=plan[i]; plan[i]=plan[i-1]; plan[i-1]=t; savePlan(plan); renderPlan(); return; }
     if(btn.dataset.act==='down' && i<plan.length-1){ const t=plan[i]; plan[i]=plan[i+1]; plan[i+1]=t; savePlan(plan); renderPlan(); return; }
-    if(btn.dataset.act==='inc'){ plan[i].quantity += 1; savePlan(plan); renderPlan(); return; }
-    if(btn.dataset.act==='dec'){ plan[i].quantity = Math.max(1, plan[i].quantity-1); savePlan(plan); renderPlan(); return; }
+    if(btn.dataset.act==='inc'){ plan[i].quantity = (Number(plan[i].quantity)||1) + 1; savePlan(plan); renderPlan(); return; }
+    if(btn.dataset.act==='dec'){ plan[i].quantity = Math.max(1, (Number(plan[i].quantity)||1) - 1); savePlan(plan); renderPlan(); return; }
   });
 
   $('#addr-plan-table')?.addEventListener('input', (e)=>{
@@ -249,8 +260,10 @@ export function initAddressing(){
     if(inp?.dataset?.role==='qty'){
       const i = Number(inp.dataset.i);
       const plan = planFromState();
-      plan[i].quantity = Math.max(1, Number(inp.value)||1);
-      savePlan(plan);
+      if(Number.isInteger(i) && plan[i]){
+        plan[i].quantity = Math.max(1, Number(inp.value)||1);
+        savePlan(plan);
+      }
     }
   });
 
@@ -268,33 +281,39 @@ export function initAddressing(){
 
       tr.innerHTML = `
         <td class="idx">${r.index}</td>
-        <td class="name" contenteditable="plaintext-only" spellcheck="false">${r.name}</td>
+        <td class="name" contenteditable="plaintext-only" spellcheck="false">${escapeHTML(r.name||'')}</td>
         <td class="universe uni-cell" contenteditable="plaintext-only"><span class="uni-dot"></span><span>${r.universe}</span></td>
         <td class="address" contenteditable="plaintext-only">${r.address}</td>
         <td>${r.footprint}</td>
         <td>${r.end}</td>
-        <td class="notes" contenteditable="plaintext-only">${r.notes||''}</td>
+        <td class="notes" contenteditable="plaintext-only">${escapeHTML(r.notes||'')}</td>
       `;
-      tr.querySelector('.universe').addEventListener('input', e=>{ e.target.textContent = e.target.textContent.replace(/[^0-9]/g,''); });
-      tr.querySelector('.address').addEventListener('input', e=>{ e.target.textContent = e.target.textContent.replace(/[^0-9]/g,''); });
+      // keep numeric-only for universe/address
+      tr.querySelector('.universe')?.addEventListener('input', e=>{
+        e.target.textContent = e.target.textContent.replace(/[^0-9]/g,'');
+      });
+      tr.querySelector('.address')?.addEventListener('input', e=>{
+        e.target.textContent = e.target.textContent.replace(/[^0-9]/g,'');
+      });
       els.tbody.appendChild(tr);
     });
   }
 
   function getRowsFromTable(){
     return [...els.tbody.querySelectorAll('tr')].map(tr=>{
+      const txt = (sel) => tr.querySelector(sel)?.textContent?.trim() ?? '';
       const toInt = (sel,def) => {
-        const v = parseInt(tr.querySelector(sel)?.textContent.trim()||def,10);
+        const v = parseInt(txt(sel),10);
         return Number.isFinite(v)?v:def;
       };
       return {
         index: toInt('.idx',0),
-        name: tr.querySelector('.name')?.textContent.trim()||'',
+        name: txt('.name'),
         universe: toInt('.universe',1),
         address: toInt('.address',1),
         footprint: toInt('td:nth-child(5)',1),
         end: toInt('td:nth-child(6)',1),
-        notes: tr.querySelector('.notes')?.textContent.trim()||'',
+        notes: txt('.notes'),
       };
     });
   }
@@ -302,10 +321,10 @@ export function initAddressing(){
   /* ---------- Generate logic ---------- */
   function generate(){
     try{
-      const start = +els.start.value || 1;
-      const universe = +els.univ.value || 1;
-      const resetMode = els.mode.value;
-      const gap = Math.max(0, +els.gap.value||0);
+      const start = +(els.start?.value ?? 1) || 1;
+      const universe = +(els.univ?.value ?? 1) || 1;
+      const resetMode = els.mode?.value || 'reset';
+      const gap = Math.max(0, +(els.gap?.value ?? 0) || 0);
 
       const plan = planFromState();
       let rows = [];
@@ -319,13 +338,11 @@ export function initAddressing(){
           const qty = Math.max(1, Number(p.quantity)||1);
 
           const localNameTemplate = (i)=> {
-            const base = `${p.brand} ${p.model}`.trim();
+            const base = `${p.brand||''} ${p.model||''}`.trim();
             const mode = p.mode ? ` (${p.mode})` : '';
-            // Combine global index so it's unique across plan:
             return `${base}${mode} #${globalIndex + i - 1}`;
           };
 
-          // run a sub-generation starting at current cursor (nextStart/nextUniverse)
           const part = calcAddressing({
             start: nextStart,
             universe: nextUniverse,
@@ -336,13 +353,11 @@ export function initAddressing(){
             nameTemplate: localNameTemplate
           });
 
-          // update cursor for next part
           if(part.length){
             const last = part[part.length-1];
             nextStart = last.end + 1 + gap;
             nextUniverse = last.universe;
             if(nextStart > UNIVERSE_SIZE){
-              // simulate overflow handling for the next loop iteration
               if(resetMode==='reset'){ nextStart = 1; nextUniverse += 1; }
               else{
                 nextStart = (nextStart - 1) - UNIVERSE_SIZE + 1;
@@ -356,9 +371,8 @@ export function initAddressing(){
           rows = rows.concat(part);
         }
       }else{
-        // fallback: legacy single fixture behavior
-        const fp = Math.max(1, +els.foot.value||1);
-        const qty = Math.max(1, +els.qty.value||1);
+        const fp = Math.max(1, +(els.foot?.value ?? 1) || 1);
+        const qty = Math.max(1, +(els.qty?.value ?? 1) || 1);
         rows = calcAddressing({
           start, universe, footprint: fp, quantity: qty, gap, resetMode,
           nameTemplate: (i)=> `Fixture ${i}`
@@ -369,9 +383,12 @@ export function initAddressing(){
 
       // Save state (including plan)
       state.setAddr({
-        start:+els.start.value, universe:+els.univ.value,
-        footprint:+els.foot.value, quantity:+els.qty.value,
-        gap:+els.gap.value, mode:els.mode.value,
+        start:+(els.start?.value ?? 1),
+        universe:+(els.univ?.value ?? 1),
+        footprint:+(els.foot?.value ?? 1),
+        quantity:+(els.qty?.value ?? 1),
+        gap:+(els.gap?.value ?? 0),
+        mode:els.mode?.value ?? 'reset',
         plan: plan
       });
 
@@ -384,7 +401,15 @@ export function initAddressing(){
     const rows = getRowsFromTable();
     const head = ['#','Name','Universe','Address','Footprint','End','Notes'];
     const csv = [head.join(',')].concat(
-      rows.map(r=>[r.index,r.name,r.universe,r.address,r.footprint,r.end, `"${(r.notes||'').replace(/"/g,'""')}"`].join(','))
+      rows.map(r=>[
+        r.index,
+        `"${String(r.name||'').replace(/"/g,'""')}"`,
+        r.universe,
+        r.address,
+        r.footprint,
+        r.end,
+        `"${String(r.notes||'').replace(/"/g,'""')}"`
+      ].join(','))
     ).join('\r\n');
     dlBlob('patch.csv', new Blob([csv], {type:'text/csv;charset=utf-8'}));
   }
@@ -392,22 +417,24 @@ export function initAddressing(){
   function copyTable(){
     const rows = getRowsFromTable();
     const txt = rows.map(r=>`${r.index}\t${r.name}\tU${r.universe}\t@${r.address}\t${r.footprint}ch\tend ${r.end}\t${r.notes}`).join('\n');
-    copyText(txt).then(()=> toast('Copied table to clipboard','success')).catch(()=> alert('Copy failed'));
+    copyText(txt)
+      .then(()=> toast('Copied table to clipboard','success'))
+      .catch(()=> alert('Copy failed'));
   }
 
   // events
-  els.gen.addEventListener('click', generate);
-  els.exp.addEventListener('click', exportCSV);
-  els.copy.addEventListener('click', copyTable);
+  els.gen?.addEventListener('click', generate);
+  els.exp?.addEventListener('click', exportCSV);
+  els.copy?.addEventListener('click', copyTable);
 
   // restore state
   const st = state.getAddr() || {};
-  if(st.start) els.start.value = st.start;
-  if(st.universe) els.univ.value = st.universe;
-  if(st.footprint) els.foot.value = st.footprint;
-  if(st.quantity) els.qty.value = st.quantity;
-  if(Number.isFinite(st.gap)) els.gap.value = st.gap;
-  if(st.mode) els.mode.value = st.mode;
+  if(st.start != null && els.start) els.start.value = st.start;
+  if(st.universe != null && els.univ) els.univ.value = st.universe;
+  if(st.footprint != null && els.foot) els.foot.value = st.footprint;
+  if(st.quantity != null && els.qty) els.qty.value = st.quantity;
+  if(Number.isFinite(st.gap) && els.gap) els.gap.value = st.gap;
+  if(st.mode && els.mode) els.mode.value = st.mode;
   renderPlan();
 
   // initial render
@@ -417,12 +444,12 @@ export function initAddressing(){
   state.onMessage(msg=>{
     if(msg?.type==='addr:update'){
       const s = msg.payload||{};
-      if(s.start) els.start.value = s.start;
-      if(s.universe) els.univ.value = s.universe;
-      if(s.footprint) els.foot.value = s.footprint;
-      if(s.quantity) els.qty.value = s.quantity;
-      if(Number.isFinite(s.gap)) els.gap.value = s.gap;
-      if(s.mode) els.mode.value = s.mode;
+      if(s.start != null && els.start) els.start.value = s.start;
+      if(s.universe != null && els.univ) els.univ.value = s.universe;
+      if(s.footprint != null && els.foot) els.foot.value = s.footprint;
+      if(s.quantity != null && els.qty) els.qty.value = s.quantity;
+      if(Number.isFinite(s.gap) && els.gap) els.gap.value = s.gap;
+      if(s.mode && els.mode) els.mode.value = s.mode;
       renderPlan();
       generate();
     }
@@ -430,10 +457,10 @@ export function initAddressing(){
 
   // shortcuts
   window.addEventListener('keydown',(e)=>{
-    if (['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)) return;
-    if(e.key==='g' || e.key==='G') els.gen.click();
-    if(e.key==='e' || e.key==='E') els.exp.click();
-    if(e.key==='c' || e.key==='C') els.copy.click();
+    const tag = document.activeElement?.tagName;
+    if (tag && ['INPUT','SELECT','TEXTAREA'].includes(tag)) return;
+    if(e.key==='g' || e.key==='G') els.gen?.click();
+    if(e.key==='e' || e.key==='E') els.exp?.click();
+    if(e.key==='c' || e.key==='C') els.copy?.click();
   });
 }
-

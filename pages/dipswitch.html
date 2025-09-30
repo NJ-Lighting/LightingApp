@@ -4,12 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LightingApp – DIP-Switch Calculator</title>
+
+  <!-- PWA -->
   <link rel="manifest" href="../manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
+
+  <!-- Styles -->
   <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/nav.css" />
 </head>
 <body>
   <main class="app" id="app">
+    <!-- Header wordt door renderHeader() geïnjecteerd -->
     <header class="header"></header>
 
     <section class="card">
@@ -39,6 +45,7 @@
     </section>
   </main>
 
+  <!-- SW + Modules -->
   <script src="../js/sw-register.js"></script>
   <script type="module">
     import { renderHeader } from '../js/nav.js';

@@ -2,21 +2,34 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Offline – LightingApp</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
+
+  <!-- Styles -->
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/nav.css" />
 </head>
 <body>
   <main class="app" id="app">
-    <header class="header">
-      <h1>Offline</h1>
-    </header>
+    <!-- Header wordt door renderHeader() geïnjecteerd -->
+    <header class="header"></header>
 
     <section class="card">
-      <p>Je bent offline. De kern van <strong>LightingApp</strong> werkt ook zonder internet. Zodra je weer online bent, ververs de pagina om updates op te halen.</p>
+      <h2>Offline</h2>
+      <p>Je bent offline. LightingApp werkt ook zonder internet. Zodra je weer online bent, ververs de pagina.</p>
       <p><a class="btn-ghost" href="index.html">Terug naar start</a></p>
     </section>
   </main>
+
+  <!-- SW + Modules -->
+  <script src="js/sw-register.js"></script>
+  <script type="module">
+    import { renderHeader } from './js/nav.js';
+    renderHeader('home');
+  </script>
 </body>
 </html>

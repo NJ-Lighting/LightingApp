@@ -4,12 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LightingApp – Bulk Addressing</title>
+
+  <!-- PWA -->
   <link rel="manifest" href="../manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
+
+  <!-- Styles -->
   <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/nav.css" />
 </head>
 <body>
   <main class="app" id="app">
+    <!-- Header wordt door renderHeader() geïnjecteerd -->
     <header class="header"></header>
 
     <section class="card">
@@ -25,11 +31,11 @@
           </div>
         </div>
         <div class="field" style="max-width:140px">
-          <label>Quantity</label>
+          <label for="addr-fixture-qty">Quantity</label>
           <input id="addr-fixture-qty" type="number" min="1" value="1" />
         </div>
         <div class="field" style="max-width:220px">
-          <label>&nbsp;</label>
+          <label aria-hidden="true">&nbsp;</label>
           <div class="row">
             <button class="btn-primary" id="addr-fixture-add">Add to Plan</button>
             <button class="btn-ghost" id="addr-plan-clear">Clear Plan</button>
@@ -42,7 +48,12 @@
         <table id="addr-plan-table">
           <thead>
             <tr>
-              <th>#</th><th>Fixture</th><th>Mode</th><th>Footprint</th><th>Qty</th><th>Actions</th>
+              <th>#</th>
+              <th>Fixture</th>
+              <th>Mode</th>
+              <th>Footprint</th>
+              <th>Qty</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -51,14 +62,29 @@
 
       <!-- Generator params -->
       <div class="row">
-        <div class="field"><label for="addr-start">Start Address</label><input id="addr-start" type="number" min="1" max="512" value="1" /></div>
-        <div class="field"><label for="addr-universe">Start Universe</label><input id="addr-universe" type="number" min="1" value="1" /></div>
-        <div class="field"><label for="addr-footprint">Footprint</label><input id="addr-footprint" type="number" min="1" value="16" /></div>
-        <div class="field"><label for="addr-quantity">Quantity</label><input id="addr-quantity" type="number" min="1" value="1" /></div>
+        <div class="field">
+          <label for="addr-start">Start Address</label>
+          <input id="addr-start" type="number" min="1" max="512" value="1" />
+        </div>
+        <div class="field">
+          <label for="addr-universe">Start Universe</label>
+          <input id="addr-universe" type="number" min="1" value="1" />
+        </div>
+        <div class="field">
+          <label for="addr-footprint">Footprint</label>
+          <input id="addr-footprint" type="number" min="1" value="16" />
+        </div>
+        <div class="field">
+          <label for="addr-quantity">Quantity</label>
+          <input id="addr-quantity" type="number" min="1" value="1" />
+        </div>
       </div>
 
       <div class="row">
-        <div class="field"><label for="addr-gap">Gap</label><input id="addr-gap" type="number" min="0" value="0" /></div>
+        <div class="field">
+          <label for="addr-gap">Gap</label>
+          <input id="addr-gap" type="number" min="0" value="0" />
+        </div>
         <div class="field">
           <label for="addr-mode">Overflow</label>
           <select id="addr-mode">
@@ -67,7 +93,7 @@
           </select>
         </div>
         <div class="field">
-          <label>&nbsp;</label>
+          <label aria-hidden="true">&nbsp;</label>
           <div class="row">
             <button class="btn-primary" id="addr-generate">Generate</button>
             <button class="btn-ghost" id="addr-export">Export CSV</button>
@@ -80,7 +106,15 @@
       <div class="table-wrap">
         <table id="addr-table">
           <thead>
-            <tr><th>#</th><th>Name</th><th>Universe</th><th>Address</th><th>Footprint</th><th>End</th><th>Notes</th></tr>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Universe</th>
+              <th>Address</th>
+              <th>Footprint</th>
+              <th>End</th>
+              <th>Notes</th>
+            </tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -88,6 +122,7 @@
     </section>
   </main>
 
+  <!-- SW + Modules -->
   <script src="../js/sw-register.js"></script>
   <script type="module">
     import { renderHeader } from '../js/nav.js';
