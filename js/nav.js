@@ -13,6 +13,7 @@ const ROUTES = {
   addr:   'pages/addressing.html',
   dip:    'pages/dipswitch.html',
   gdtf:   'pages/gdtf.html',
+  mylib:  'pages/mylibrary.html',   // ✅ Nieuw: My Library
   about:  'pages/about.html',
   // offline: 'offline.html', // optioneel
 };
@@ -27,6 +28,7 @@ const LINKS = [
   { label: "Bulk Addressing", href: resolve(ROUTES.addr),  icon: "📦", meta: "Patch helper" },
   { label: "DIP-switch",      href: resolve(ROUTES.dip),   icon: "🎚️", meta: "Dimmers/DIP" },
   { label: "GDTF Library",    href: resolve(ROUTES.gdtf),  icon: "📁", meta: "Zoek & download" },
+  { label: "My Library",      href: resolve(ROUTES.mylib), icon: "🗂️", meta: "Eigen & GDTF opgeslagen" }, // ✅ Nieuw
   { label: "About",           href: resolve(ROUTES.about), icon: "ℹ️", meta: "Over deze app" },
 ];
 

@@ -227,8 +227,8 @@ function renderCard(it) {
       // Schrijf "gekozen fixture" naar localStorage zodat bulk addressing of andere pagina's hem kunnen ophalen.
       localStorage.setItem('lightingapp.mylibrary.lastSelected', JSON.stringify({ id, at: Date.now() }));
       // Navigeer optioneel naar bulk addressing als je wilt:
-      // location.href = '/addressing.html'; // desgewenst uitcommentariëren
-      alert('Geselecteerd. Open je bulk addressing pagina om verder te gaan.');
+      // location.href = '/pages/addressing.html'; // desgewenst uitcommentariëren
+      alert('Geselecteerd. Open je Bulk Addressing pagina om verder te gaan.');
     }
   });
 
@@ -308,4 +308,34 @@ btnImport.addEventListener('click', () => fileImport.click());
 
 fileImport.addEventListener('change', async () => {
   const file = fileImport.files?.[0];
-  if (!fil
+  if (!file) return;
+  try {
+    const txt = await file.text();
+    const obj = JSON.parse(txt);
+    const count = importJson(obj, { merge: true });
+    alert(`Geïmporteerd: ${count} fixtures.`);
+    render();
+  } catch (e) {
+    console.error(e);
+    alert('Kon JSON niet lezen. Controleer het bestand.');
+  } finally {
+    fileImport.value = '';
+  }
+});
+
+// Eerste render
+render();
+
+// Exporteer een eenvoudige API voor andere pagina's
+window.MyLibrary = {
+  add,
+  addFromGdtf(meta) {
+    // Call vanuit je GDTF pagina: MyLibrary.addFromGdtf({ manufacturer, name, mode, footprint, gdtf:{ uid, rev, url } })
+    return add({ ...meta, source: 'gdtf' });
+  },
+  list: loadAll,
+  select(id) {
+    localStorage.setItem('lightingapp.mylibrary.lastSelected', JSON.stringify({ id, at: Date.now() }));
+  },
+  clearAll,
+};
