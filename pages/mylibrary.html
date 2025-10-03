@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>LightingApp – My Library</title>
+
+  <!-- PWA (optioneel, gelijk aan je andere pagina's) -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0b0f15" />
+  <link rel="icon" sizes="192x192" href="/assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/nav.css" />
+</head>
+<body>
+  <main class="app" id="app">
+
+    <section class="card">
+      <header class="row" style="align-items:center; gap:12px; flex-wrap:wrap;">
+        <h2 style="margin:0;">Mijn Fixture Library</h2>
+
+        <div class="spacer"></div>
+
+        <div class="row g8" style="flex-wrap:wrap;">
+          <div class="field" style="min-width:220px">
+            <label for="q">Zoeken</label>
+            <input id="q" type="search" placeholder="Zoek op merk, naam of notities…" />
+          </div>
+
+          <div class="field">
+            <label for="filter">Bron</label>
+            <select id="filter">
+              <option value="all">Alles</option>
+              <option value="local">Eigen</option>
+              <option value="gdtf">GDTF</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="sort">Sorteren</label>
+            <select id="sort">
+              <option value="name-asc">Naam (A–Z)</option>
+              <option value="name-desc">Naam (Z–A)</option>
+              <option value="date-desc">Nieuwste eerst</option>
+              <option value="date-asc">Oudste eerst</option>
+              <option value="brand-asc">Merk (A–Z)</option>
+            </select>
+          </div>
+
+          <button id="btn-add" class="btn">+ Toevoegen</button>
+          <button id="btn-import" class="btn">Importeren</button>
+          <button id="btn-export" class="btn btn-ghost">Exporteren</button>
+        </div>
+      </header>
+
+      <div id="empty" class="muted" style="display:none; padding:12px 0;">
+        Nog niets in je library. Voeg een fixture toe met <b>+ Toevoegen</b> of importeer een JSON-export.
+      </div>
+
+      <div id="grid" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));"></div>
+    </section>
+
+    <!-- Modal: Toevoegen/Bewerken -->
+    <dialog id="dlg-edit" class="card" style="max-width:640px; width:calc(100% - 24px); border:none; border-radius:var(--radius); background:var(--panel); color:var(--text);">
+      <form id="frm-edit" method="dialog" class="col g12">
+        <h3 id="dlg-title" style="margin:0;">Fixture toevoegen</h3>
+
+        <div class="row g12">
+          <div class="field" style="flex:1">
+            <label for="f-man">Merk *</label>
+            <input id="f-man" name="manufacturer" required />
+          </div>
+          <div class="field" style="flex:1">
+            <label for="f-name">Naam *</label>
+            <input id="f-name" name="name" required />
+          </div>
+        </div>
+
+        <div class="row g12">
+          <div class="field" style="flex:1">
+            <label for="f-mode">Mode</label>
+            <input id="f-mode" name="mode" placeholder="bv. Standard 16ch" />
+          </div>
+          <div class="field" style="max-width:180px">
+            <label for="f-footprint">DMX footprint</label>
+            <input id="f-footprint" type="number" name="footprint" min="1" max="512" inputmode="numeric" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="f-notes">Notities</label>
+          <textarea id="f-notes" name="notes" rows="3" placeholder="Eigen opmerkingen…"></textarea>
+        </div>
+
+        <div class="row" style="justify-content:flex-end; gap:8px">
+          <button type="button" id="btn-cancel" class="btn btn-ghost">Annuleren</button>
+          <button type="submit" class="btn">Opslaan</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Hidden file input for import -->
+    <input id="file-import" type="file" accept="application/json" style="display:none" />
+
+  </main>
+
+  <script type="module" src="/js/mylibrary.page.js"></script>
+</body>
+</html>
