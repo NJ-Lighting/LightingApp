@@ -14,9 +14,11 @@
   <link rel="stylesheet" href="/css/nav.css" />
 </head>
 <body>
-  <main class="app" id="app">
+  <a href="#main" class="sr-only">Sla navigatie over</a>
+
+  <main class="app" id="main">
     <section class="card">
-      <h2>GDTF Share</h2>
+      <h1 style="margin-top:0">GDTF Share</h1>
 
       <!-- Login -->
       <div class="row">
@@ -31,35 +33,33 @@
         <div class="field">
           <label aria-hidden="true">&nbsp;</label>
           <div class="row">
-            <button class="btn-primary" id="gdtf-login">Login</button>
-            <button class="btn-ghost" id="gdtf-logout">Logout</button>
+            <button class="btn-primary" id="gdtf-login" type="button">Login</button>
+            <button class="btn-ghost" id="gdtf-logout" type="button">Logout</button>
           </div>
         </div>
       </div>
 
-      <div class="note" id="gdtf-status">Not logged in.</div>
+      <div class="note" id="gdtf-status" role="status">Not logged in.</div>
 
       <!-- Search / filter -->
       <div class="row" style="align-items:flex-end">
-        <button id="gdtf-getlist" class="btn-primary" disabled>Get List</button>
+        <button id="gdtf-getlist" class="btn-primary" type="button" disabled>Get List</button>
 
         <div class="field">
           <label for="gdtf-manu-input">Manufacturer</label>
-          <div class="typeahead">
-            <input id="gdtf-manu-input" disabled />
-            <div id="gdtf-manu-list" class="ta-list"></div>
-          </div>
+          <!-- onze JS maakt/onderhoudt hieronder automatisch <datalist id="gdtf-manus-dl"> -->
+          <input id="gdtf-manu-input" disabled list="gdtf-manus-dl" />
+          <datalist id="gdtf-manus-dl"></datalist>
         </div>
 
         <div class="field">
           <label for="gdtf-fixture-input">Fixture</label>
-          <div class="typeahead ta-disabled">
-            <input id="gdtf-fixture-input" disabled />
-            <div id="gdtf-fixture-list" class="ta-list"></div>
-          </div>
+          <!-- onze JS maakt/onderhoudt hieronder automatisch <datalist id="gdtf-fixtures-dl"> -->
+          <input id="gdtf-fixture-input" disabled list="gdtf-fixtures-dl" />
+          <datalist id="gdtf-fixtures-dl"></datalist>
         </div>
 
-        <span class="muted" id="gdtf-count"></span>
+        <span class="muted" id="gdtf-count" aria-live="polite"></span>
       </div>
 
       <!-- Alphabetical filter -->
@@ -70,13 +70,13 @@
         <table id="gdtf-table">
           <thead>
             <tr>
-              <th class="sortable" data-sort="manufacturer">Manufacturer</th>
-              <th class="sortable" data-sort="fixture">Fixture</th>
-              <th>Revision</th>
-              <th>Modes</th>
-              <th>Rating</th>
-              <th>Size</th>
-              <th>Actions</th>
+              <th class="sortable" data-sort="manufacturer" aria-sort="none" scope="col">Manufacturer</th>
+              <th class="sortable" data-sort="fixture" aria-sort="none" scope="col">Fixture</th>
+              <th scope="col">Revision</th>
+              <th scope="col">Modes</th>
+              <th scope="col">Rating</th>
+              <th scope="col">Size</th>
+              <th scope="col">Actions</th>
             </tr>
           </thead>
           <tbody></tbody>

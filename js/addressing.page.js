@@ -11,90 +11,192 @@ function universeColor(u){
   };
 }
 
+/** Simple typeahead with A11y roles */
 function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placeholder}){
   if(!input || !listEl) return { refresh: ()=>{}, close: ()=>{} };
-  let items=[]; let open=false; let activeIndex=-1; const MAX=20;
+
+  let items = [];
+  let open = false;
+  let activeIndex = -1;
+  const MAX = 20;
+
+  // A11y wiring
+  const listboxId = listEl.id || (listEl.id = `ta-${Math.random().toString(36).slice(2)}`);
   input.setAttribute('autocomplete','off');
   input.setAttribute('role','combobox');
   input.setAttribute('aria-expanded','false');
+  input.setAttribute('aria-controls', listboxId);
+  input.setAttribute('aria-autocomplete', 'list');
+  listEl.setAttribute('role','listbox');
+
   if(placeholder) input.placeholder = placeholder;
 
-  function close(){ open=false; listEl.style.display='none'; input.setAttribute('aria-expanded','false'); activeIndex=-1; }
-  function openList(){ open=true; listEl.style.display='block'; input.setAttribute('aria-expanded','true'); }
+  function close(){
+    if(!open) return;
+    open = false;
+    listEl.style.display = 'none';
+    input.setAttribute('aria-expanded','false');
+    input.removeAttribute('aria-activedescendant');
+    activeIndex = -1;
+  }
+
+  function openList(){
+    if(open) return;
+    open = true;
+    listEl.style.display = 'block';
+    input.setAttribute('aria-expanded','true');
+  }
+
   function render(){
-    listEl.innerHTML='';
-    if(items.length===0){
-      const d=document.createElement('div');
-      d.className='ta-empty';
-      d.textContent='No matches';
+    listEl.innerHTML = '';
+    if(items.length === 0){
+      const d = document.createElement('div');
+      d.className = 'ta-empty';
+      d.textContent = 'Geen resultaten';
+      d.setAttribute('role','option');
       listEl.appendChild(d);
+      input.removeAttribute('aria-activedescendant');
       return;
     }
     items.forEach((it,i)=>{
-      const div=document.createElement('div');
-      div.className='ta-item'; div.setAttribute('role','option'); div.dataset.index=i;
-      div.innerHTML = renderItem? renderItem(it) : `<span>${escapeHTML(String(it))}</span>`;
-      if(i===activeIndex) div.setAttribute('aria-selected','true');
-      div.addEventListener('mouseenter', ()=> { activeIndex=i; updateActive(); });
-      div.addEventListener('mousedown', (e)=> e.preventDefault());
+      const id = `${listboxId}-opt-${i}`;
+      const div = document.createElement('div');
+      div.id = id;
+      div.className = 'ta-item';
+      div.setAttribute('role','option');
+      div.dataset.index = i;
+
+      div.innerHTML = renderItem ? renderItem(it)
+        : `<span>${escapeHTML(String(it))}</span>`;
+
+      if(i === activeIndex) {
+        div.setAttribute('aria-selected','true');
+        input.setAttribute('aria-activedescendant', id);
+      } else {
+        div.setAttribute('aria-selected','false');
+      }
+
+      div.addEventListener('mouseenter', ()=> { activeIndex = i; updateActive(); });
+      div.addEventListener('mousedown', (e)=> e.preventDefault()); // geen blur op click
       div.addEventListener('click', ()=> choose(i));
       listEl.appendChild(div);
     });
   }
+
   function updateActive(){
-    $$('.ta-item', listEl).forEach((n,ix)=> n.setAttribute('aria-selected', ix===activeIndex ? 'true':'false'));
+    $$('.ta-item', listEl).forEach((n,ix)=>{
+      const sel = ix===activeIndex ? 'true' : 'false';
+      n.setAttribute('aria-selected', sel);
+      if(ix===activeIndex) input.setAttribute('aria-activedescendant', n.id);
+    });
     const el = listEl.querySelector(`.ta-item[data-index="${activeIndex}"]`);
     if(el){
-      const r = el.getBoundingClientRect(); const p = listEl.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      const p = listEl.getBoundingClientRect();
       if(r.bottom > p.bottom) listEl.scrollTop += (r.bottom - p.bottom);
       if(r.top < p.top) listEl.scrollTop -= (p.top - r.top);
+    } else {
+      input.removeAttribute('aria-activedescendant');
     }
   }
-  function choose(i){ const val = items[i]; if(!val) return; onChoose?.(val, input, close); }
-  function toStr(it){ return typeof it==='string' ? it : (it.label || it.value || ''); }
+
+  function choose(i){
+    const val = items[i];
+    if(!val) return;
+    onChoose?.(val, input, close);
+  }
+
+  function toStr(it){
+    return typeof it==='string' ? it : (it.label || it.value || '');
+  }
+
   function doFilter(){
     const q = input.value.trim().toLowerCase();
     const src = (getItems?.() || []);
+    // starts-with eerst, daarna includes
     const starts = src.filter(s=> toStr(s).toLowerCase().startsWith(q));
     const rest   = src.filter(s=> !toStr(s).toLowerCase().startsWith(q) && toStr(s).toLowerCase().includes(q));
-    items = (q? starts.concat(rest) : src).slice(0, MAX);
-    openList(); activeIndex = items.length ? 0 : -1; render();
+    items = (q ? starts.concat(rest) : src).slice(0, MAX);
+    openList();
+    activeIndex = items.length ? 0 : -1;
+    render();
   }
+
   input.addEventListener('input', doFilter);
-  input.addEventListener('focus', ()=> { doFilter(); });
+  input.addEventListener('focus', doFilter);
   input.addEventListener('keydown', (e)=>{
-    if(!open){ if(e.key==='ArrowDown'){ doFilter(); e.preventDefault(); } return; }
+    if(!open){
+      if(e.key==='ArrowDown'){ doFilter(); e.preventDefault(); }
+      return;
+    }
     if(e.key==='ArrowDown'){ activeIndex = Math.min(activeIndex+1, items.length-1); updateActive(); e.preventDefault(); }
     else if(e.key==='ArrowUp'){ activeIndex = Math.max(activeIndex-1, 0); updateActive(); e.preventDefault(); }
     else if(e.key==='Enter'){ if(activeIndex>=0){ choose(activeIndex); e.preventDefault(); } }
-    else if(e.key==='Escape'){ close(); }
+    else if(e.key==='Escape'){ close(); input.select?.(); }
   });
-  document.addEventListener('click', (e)=>{ if(!listEl.parentElement.contains(e.target)) close(); });
+
+  // klik buiten
+  const onDocClick = (e)=>{
+    if(!open) return;
+    const root = listEl.parentElement || document.body;
+    if(!root.contains(e.target)) close();
+  };
+  document.addEventListener('click', onDocClick, { capture:true });
+
+  // cleanup mocht ooit nodig: return object heeft alleen close/refresh (past bij jouw gebruik)
   return { refresh: doFilter, close };
 }
 
 /* ---------- Address calculation ---------- */
+/**
+ * Genereert aaneengesloten fixtures met rollover tussen universes.
+ * - start: 1..512
+ * - universe: >=1
+ * - footprint: >=1, <=512
+ * - quantity: >=1
+ * - gap: >=0 (kan overflow veroorzaken → we rollen door)
+ * - resetMode: 'reset' | 'roll' (bij overflow: reset = adres weer 1, roll = doorgaan modulo 512)
+ */
 function calcAddressing({start, universe, footprint, quantity, gap, resetMode, nameTemplate}){
   if(footprint > UNIVERSE_SIZE){
     throw new Error('Footprint groter dan 512 (universe size).');
   }
-  const rows=[];
-  let curA = clamp(start,1,UNIVERSE_SIZE);
+  const rows = [];
+  let curA = clamp(start, 1, UNIVERSE_SIZE);
   let curU = Math.max(1, universe);
-  for(let i=1;i<=quantity;i++){
+
+  for(let i=1; i<=quantity; i++){
+    // Past het niet in huidige universe? -> universum opschuiven en adres bepalen
     if(curA + footprint - 1 > UNIVERSE_SIZE){
       curU += 1;
-      if(resetMode==='reset'){
+      if(resetMode === 'reset'){
         curA = 1;
-      }else{
-        curA = (curA + footprint - 1) - UNIVERSE_SIZE + 1;
+      } else {
+        // rollende adressering (mod 512), blijf netjes binnen 1..512
+        curA = ((curA - 1 + footprint) % UNIVERSE_SIZE) + 1;
+        // Het kan theoretisch nog steeds uitkomen dat footprint niet past (bv. footprint=512 en curA!=1) -> forceer 1
         if(curA + footprint - 1 > UNIVERSE_SIZE) curA = 1;
       }
     }
+
     const end = curA + footprint - 1;
     const name = typeof nameTemplate==='function' ? nameTemplate(i) : `Fixture ${i}`;
-    rows.push({ index:0, name, universe:curU, address:curA, footprint, end, notes:'' });
+
+    rows.push({ index: 0, name, universe: curU, address: curA, footprint, end, notes: '' });
+
+    // Volgende startpositie met gap (kan overflow veroorzaken → volgende iteratie fixt dit blok bovenaan)
     curA = end + 1 + gap;
+    if(curA > UNIVERSE_SIZE){
+      curU += Math.floor((curA - 1) / UNIVERSE_SIZE);
+      if(resetMode === 'reset'){
+        curA = ((curA - 1) % UNIVERSE_SIZE) + 1; // begin voor volgende universe bij 1
+        // Als we exact op grens boven 512 zaten, start je op 1 in volgende universe
+        if(curA !== 1) curA = 1;
+      } else {
+        curA = ((curA - 1) % UNIVERSE_SIZE) + 1;
+        if(curA + footprint - 1 > UNIVERSE_SIZE) curA = 1;
+      }
+    }
   }
   return rows;
 }
@@ -111,16 +213,16 @@ export function initAddressing(){
     planClear:$('#addr-plan-clear'),
 
     start: $('#addr-start'),
-    univ: $('#addr-universe'),
-    foot: $('#addr-footprint'),
-    qty: $('#addr-quantity'),
-    gap: $('#addr-gap'),
-    mode: $('#addr-mode'),
+    univ:  $('#addr-universe'),
+    foot:  $('#addr-footprint'),
+    qty:   $('#addr-quantity'),
+    gap:   $('#addr-gap'),
+    mode:  $('#addr-mode'),
 
     tbody: $('#addr-table tbody'),
-    gen: $('#addr-generate'),
-    exp: $('#addr-export'),
-    copy: $('#addr-copy'),
+    gen:   $('#addr-generate'),
+    exp:   $('#addr-export'),
+    copy:  $('#addr-copy'),
   };
 
   if(!els.tbody){
@@ -166,8 +268,8 @@ export function initAddressing(){
     listEl: els.fxList,
     getItems,
     renderItem: (it)=> {
-      const left = escapeHTML(it.value);
-      const right= escapeHTML(`${it.meta.mode||'–'} • ${it.meta.footprint??'?'}ch`);
+      const left  = escapeHTML(it.value);
+      const right = escapeHTML(`${it.meta.mode||'–'} • ${it.meta.footprint??'?'}ch`);
       return `<span>${left}</span><span class="ta-tag">${right}</span>`;
     },
     onChoose: (it, input, close)=>{
@@ -180,15 +282,17 @@ export function initAddressing(){
       if(input) input.value = `${selectedBuf.brand} ${selectedBuf.model}`.trim();
       close?.();
     },
-    placeholder: 'Search brand, model, mode…'
+    placeholder: 'Zoek op fabrikant, model of mode…'
   });
 
+  /* ---------- Plan rendering ---------- */
   function renderPlan(){
     const plan = planFromState();
     if(els.planWrap) els.planWrap.style.display = plan.length ? 'block' : 'none';
     if(!els.planTable) return;
     els.planTable.innerHTML = '';
     plan.forEach((p, idx)=>{
+      const qtyVal = Math.max(1, Number(p.quantity)||1);
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${idx+1}</td>
@@ -197,16 +301,16 @@ export function initAddressing(){
         <td>${p.footprint??'?'} ch</td>
         <td>
           <div class="row" style="gap:6px; align-items:center">
-            <button class="btn-ghost" data-act="dec" data-i="${idx}" type="button">–</button>
-            <input data-i="${idx}" data-role="qty" value="${Math.max(1, Number(p.quantity)||1)}" type="number" min="1" style="width:64px" />
-            <button class="btn-ghost" data-act="inc" data-i="${idx}" type="button">+</button>
+            <button class="btn-ghost" data-act="dec" data-i="${idx}" type="button" aria-label="Verlaag aantal">–</button>
+            <input data-i="${idx}" data-role="qty" value="${qtyVal}" type="number" min="1" style="width:64px" aria-label="Aantal voor rij ${idx+1}" />
+            <button class="btn-ghost" data-act="inc" data-i="${idx}" type="button" aria-label="Verhoog aantal">+</button>
           </div>
         </td>
         <td>
           <div class="row" style="gap:6px; align-items:center">
-            <button class="btn-ghost" data-act="up" data-i="${idx}"   type="button">↑</button>
-            <button class="btn-ghost" data-act="down" data-i="${idx}" type="button">↓</button>
-            <button data-act="del" data-i="${idx}" type="button">Remove</button>
+            <button class="btn-ghost" data-act="up" data-i="${idx}"   type="button" aria-label="Omhoog">↑</button>
+            <button class="btn-ghost" data-act="down" data-i="${idx}" type="button" aria-label="Omlaag">↓</button>
+            <button data-act="del" data-i="${idx}" type="button" aria-label="Verwijder">Remove</button>
           </div>
         </td>
       `;
@@ -215,12 +319,15 @@ export function initAddressing(){
   }
 
   function addToPlan(sel, qty){
-    if(!sel){ toast('Select a fixture from Library first','warning'); return; }
+    if(!sel){ toast('Selecteer eerst een fixture uit de Library','warning'); return; }
     const q = Math.max(1, Number(qty)||1);
     const plan = planFromState();
-    const ix = plan.findIndex(p => p.brand===sel.brand && p.model===sel.model && p.mode===sel.mode && (p.footprint||null)===(sel.footprint||null));
-    if(ix>=0){ plan[ix].quantity += q; }
-    else{
+    const ix = plan.findIndex(p =>
+      p.brand===sel.brand && p.model===sel.model && p.mode===sel.mode && (p.footprint||null)===(sel.footprint||null)
+    );
+    if(ix>=0){
+      plan[ix].quantity = Math.max(1, (Number(plan[ix].quantity)||1) + q);
+    }else{
       plan.push({
         brand: sel.brand||'',
         model: sel.model||'',
@@ -231,11 +338,10 @@ export function initAddressing(){
     }
     savePlan(plan);
     renderPlan();
-    toast('Added to plan','success');
+    toast('Toegevoegd aan plan','success');
   }
 
   els.fxAdd?.addEventListener('click', ()=> addToPlan(selectedBuf, els.fxQty?.value));
-
   els.planClear?.addEventListener('click', ()=>{
     savePlan([]);
     renderPlan();
@@ -251,7 +357,7 @@ export function initAddressing(){
     if(btn.dataset.act==='del'){ plan.splice(i,1); savePlan(plan); renderPlan(); return; }
     if(btn.dataset.act==='up' && i>0){ const t=plan[i]; plan[i]=plan[i-1]; plan[i-1]=t; savePlan(plan); renderPlan(); return; }
     if(btn.dataset.act==='down' && i<plan.length-1){ const t=plan[i]; plan[i]=plan[i+1]; plan[i+1]=t; savePlan(plan); renderPlan(); return; }
-    if(btn.dataset.act==='inc'){ plan[i].quantity = (Number(plan[i].quantity)||1) + 1; savePlan(plan); renderPlan(); return; }
+    if(btn.dataset.act==='inc'){ plan[i].quantity = Math.max(1, (Number(plan[i].quantity)||1) + 1); savePlan(plan); renderPlan(); return; }
     if(btn.dataset.act==='dec'){ plan[i].quantity = Math.max(1, (Number(plan[i].quantity)||1) - 1); savePlan(plan); renderPlan(); return; }
   });
 
@@ -288,7 +394,7 @@ export function initAddressing(){
         <td>${r.end}</td>
         <td class="notes" contenteditable="plaintext-only">${escapeHTML(r.notes||'')}</td>
       `;
-      // keep numeric-only for universe/address
+      // numeric-only for universe/address
       tr.querySelector('.universe')?.addEventListener('input', e=>{
         e.target.textContent = e.target.textContent.replace(/[^0-9]/g,'');
       });
@@ -358,11 +464,13 @@ export function initAddressing(){
             nextStart = last.end + 1 + gap;
             nextUniverse = last.universe;
             if(nextStart > UNIVERSE_SIZE){
-              if(resetMode==='reset'){ nextStart = 1; nextUniverse += 1; }
-              else{
-                nextStart = (nextStart - 1) - UNIVERSE_SIZE + 1;
+              if(resetMode==='reset'){
+                nextStart = 1;
                 nextUniverse += 1;
-                if(nextStart > UNIVERSE_SIZE){ nextStart = 1; }
+              } else {
+                nextStart = ((nextStart - 1) % UNIVERSE_SIZE) + 1;
+                nextUniverse += 1;
+                if(nextStart + fp - 1 > UNIVERSE_SIZE) nextStart = 1;
               }
             }
           }
@@ -416,10 +524,12 @@ export function initAddressing(){
 
   function copyTable(){
     const rows = getRowsFromTable();
-    const txt = rows.map(r=>`${r.index}\t${r.name}\tU${r.universe}\t@${r.address}\t${r.footprint}ch\tend ${r.end}\t${r.notes}`).join('\n');
+    const txt = rows
+      .map(r => `${r.index}\t${r.name}\tU${r.universe}\t@${r.address}\t${r.footprint}ch\tend ${r.end}\t${r.notes}`)
+      .join('\n');
     copyText(txt)
-      .then(()=> toast('Copied table to clipboard','success'))
-      .catch(()=> alert('Copy failed'));
+      .then(()=> toast('Tabel gekopieerd naar klembord','success'))
+      .catch(()=> alert('Kopiëren mislukt'));
   }
 
   // events
@@ -432,8 +542,8 @@ export function initAddressing(){
   if(st.start != null && els.start) els.start.value = st.start;
   if(st.universe != null && els.univ) els.univ.value = st.universe;
   if(st.footprint != null && els.foot) els.foot.value = st.footprint;
-  if(st.quantity != null && els.qty) els.qty.value = st.quantity;
-  if(Number.isFinite(st.gap) && els.gap) els.gap.value = st.gap;
+  if(st.quantity != null && els.qty) els.qty.value = Math.max(1, st.quantity);
+  if(Number.isFinite(st.gap) && els.gap) els.gap.value = Math.max(0, st.gap);
   if(st.mode && els.mode) els.mode.value = st.mode;
   renderPlan();
 
@@ -447,8 +557,8 @@ export function initAddressing(){
       if(s.start != null && els.start) els.start.value = s.start;
       if(s.universe != null && els.univ) els.univ.value = s.universe;
       if(s.footprint != null && els.foot) els.foot.value = s.footprint;
-      if(s.quantity != null && els.qty) els.qty.value = s.quantity;
-      if(Number.isFinite(s.gap) && els.gap) els.gap.value = s.gap;
+      if(s.quantity != null && els.qty) els.qty.value = Math.max(1, s.quantity);
+      if(Number.isFinite(s.gap) && els.gap) els.gap.value = Math.max(0, s.gap);
       if(s.mode && els.mode) els.mode.value = s.mode;
       renderPlan();
       generate();

@@ -38,7 +38,7 @@ function updateNumbers(){
 function reorderDips(direction /* 'ltr' | 'rtl' */){
   if(!els?.toggles) return;
   const wrap = els.toggles;
-  const keepScroll = wrap.scrollLeft;
+  const keepScroll = wrap.scrollLeft ?? 0;
 
   const nodes = Array.from(wrap.children).filter(n => n.classList?.contains('dip'));
   nodes.sort((a,b)=>{
@@ -48,7 +48,8 @@ function reorderDips(direction /* 'ltr' | 'rtl' */){
   });
   nodes.forEach(n => wrap.appendChild(n));
 
-  wrap.scrollLeft = keepScroll;
+  // herstel scroll zonder te springen
+  if (Number.isFinite(keepScroll)) wrap.scrollLeft = keepScroll;
   updateNumbers();
 }
 
@@ -82,7 +83,6 @@ function renderDIPs(container){
   _boundChangeHandler = ()=> syncFromSwitches();
   container.addEventListener('change', _boundChangeHandler);
 
-  // Init labels (voor het geval flip nog niet is toegepast)
   updateNumbers();
 }
 
@@ -90,7 +90,7 @@ function renderDIPs(container){
 // Zet switches naar adres (1..511)
 function setSwitchesFor(addr, container){
   if(!container) return;
-  const a = Math.max(1, Math.min(MAX_ADDR, Number(addr)||1));
+  const a = clampAddr(addr);
   DIP_VALUES.forEach(v=>{
     const input = container.querySelector(`#sw-${v}`);
     if(!input) return;
@@ -108,13 +108,20 @@ function switchesValue(container){
     const input = container.querySelector(`#sw-${v}`);
     if(input?.checked) mask |= v;
   });
-  return Math.max(1, Math.min(MAX_ADDR, mask || 1));
+  return clampAddr(mask || 1);
+}
+
+function clampAddr(v){
+  const n = Number(v) || 1;
+  return Math.max(1, Math.min(MAX_ADDR, n));
 }
 
 function syncFromAddress(){
   if(!els?.address || !els?.toggles) return;
-  const a = Math.max(1, Math.min(MAX_ADDR, Number(els.address.value)||1));
+  const a = clampAddr(els.address.value);
   setSwitchesFor(a, els.toggles);
+  // aria-live announce
+  els.addrLive && (els.addrLive.textContent = `Adres ${a}`);
   state.setDip?.(a);
 }
 
@@ -131,6 +138,8 @@ function syncFromSwitches(){
     if(lbl) lbl.textContent = inp.checked ? 'ON' : 'OFF';
   });
 
+  // aria-live announce
+  els.addrLive && (els.addrLive.textContent = `Adres ${addr1}`);
   state.setDip?.(addr1);
 }
 
@@ -186,6 +195,7 @@ function toggleHFlip(){
 export function initDipswitch(){
   els = {
     address:   $('#addr'),
+    addrLive:  $('#addr-live'), // aria-live element (optioneel in HTML)
     toggles:   $('#dipwrap'),
     orientBtn: $('#dip-orient'),
     hflipBtn:  $('#dip-hflip'),
@@ -202,11 +212,25 @@ export function initDipswitch(){
   applyHFlipUI();       // labels & DOM-volgorde
 
   // Live sync adres ↔ switches
-  els.address?.addEventListener('input', syncFromAddress);
+  els.address?.addEventListener('input', ()=>{
+    // alleen cijfers toelaten tijdens typen
+    const v = String(els.address.value || '').replace(/[^0-9]/g,'');
+    if(v !== els.address.value) els.address.value = v;
+    // niet elke toetsaanslag forceren; set pas nadat waarde geldig wordt
+    if(v.length) syncFromAddress();
+  });
+  els.address?.addEventListener('change', ()=>{
+    els.address.value = clampAddr(els.address.value);
+    syncFromAddress();
+  });
+  els.address?.addEventListener('blur', ()=>{
+    els.address.value = clampAddr(els.address.value);
+    syncFromAddress();
+  });
 
   // Startwaarde uit state
   if(els.address){
-    const start = Math.max(1, Math.min(MAX_ADDR, state.getDip ? state.getDip() : 1));
+    const start = clampAddr(state.getDip ? state.getDip() : 1);
     els.address.value = start;
     syncFromAddress();
   }
@@ -218,9 +242,10 @@ export function initDipswitch(){
   // Cross-tab sync
   state.onMessage?.(msg=>{
     if(msg?.type==='dip:update'){
-      const v = Math.max(1, Math.min(MAX_ADDR, msg.payload));
+      const v = clampAddr(msg.payload);
       if(els.address) els.address.value = v;
       setSwitchesFor(v, els.toggles);
+      els.addrLive && (els.addrLive.textContent = `Adres ${v}`);
     }
   });
 }

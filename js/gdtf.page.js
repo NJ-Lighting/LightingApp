@@ -1,4 +1,4 @@
-import { $, $$, toast, escapeHTML } from './core.js';
+import { $, $$, toast, escapeHTML, dlBlob } from './core.js';
 import state from './state.js';
 
 const GDTF_BASE = '/api/gdtf';
@@ -7,7 +7,7 @@ function setStatus(msg, kind='info'){
   const el = $('#gdtf-status');
   if(!el) return;
   const colors = {info:'#1f2a3a', ok:'#16a34a', warn:'#f59e0b', err:'#ef4444'};
-  el.textContent = msg;
+  el.textContent = String(msg ?? '');
   el.style.borderColor = colors[kind] || colors.info;
 }
 
@@ -24,13 +24,13 @@ function normalizeModes(modes){
 
 let g = {
   loggedIn:false,
-  list:[],          // volledige lijst
+  list:[],          // volledige lijst (raw)
   filtered:[],      // na filters
   index: {
-    byManu:new Map(),
-    fixturesByManu:new Map(),
-    manus:[],
-    globalFixtures:[]
+    byManu:new Map(),           // manu -> [records]
+    fixturesByManu:new Map(),   // manu -> Set(fixture)
+    manus:[],                   // alfabetisch
+    globalFixtures:[]           // [{fixture, manufacturer}] alfabetisch
   },
   sort: { key:null, dir:'asc' },
   manuSelected:'',
@@ -54,21 +54,26 @@ function buildIndexes(){
       globalSet.add(`${fix}|||${manu}`);
     }
   }
-  g.index.manus = Array.from(g.index.byManu.keys()).filter(Boolean).sort((a,b)=>a.localeCompare(b));
-  g.index.globalFixtures = Array.from(globalSet).map(key=>{
-    const [fixture, manufacturer] = key.split('|||');
-    return { fixture, manufacturer };
-  }).sort((a,b)=> (a.fixture+a.manufacturer).localeCompare(b.fixture+b.manufacturer));
+  g.index.manus = Array.from(g.index.byManu.keys())
+    .filter(Boolean)
+    .sort((a,b)=>a.localeCompare(b));
+  g.index.globalFixtures = Array.from(globalSet)
+    .map(key=>{
+      const [fixture, manufacturer] = key.split('|||');
+      return { fixture, manufacturer };
+    })
+    .sort((a,b)=> (a.fixture+a.manufacturer).localeCompare(b.fixture+b.manufacturer));
 }
 
+/* ---------- Sortering ---------- */
 function applySort(rows){
   const { key, dir } = g.sort;
   if(!key) return rows;
   const sign = dir === 'desc' ? -1 : 1;
   const collator = new Intl.Collator(undefined, { sensitivity:'base', numeric:true });
   return rows.slice().sort((a,b)=>{
-    const A = (a[key]||'').toString();
-    const B = (b[key]||'').toString();
+    const A = (a[key]??'').toString();
+    const B = (b[key]??'').toString();
     return sign * collator.compare(A, B);
   });
 }
@@ -79,6 +84,7 @@ function updateSortHeaderUI(){
   if(th) th.setAttribute('aria-sort', g.sort.dir === 'asc' ? 'ascending' : 'descending');
 }
 
+/* ---------- Rendering ---------- */
 function renderTable(rows){
   const tbody = $('#gdtf-table tbody');
   if(!tbody) return;
@@ -91,7 +97,7 @@ function renderTable(rows){
       ? modes.map(md=> `<div class="badge" style="display:inline-block; margin:2px 4px 2px 0">${escapeHTML(md.name||'–')} • ${md.dmxfootprint??'?'}ch</div>`).join('')
       : '<span class="muted">–</span>';
     const size = rec.filesize ? (Math.round(rec.filesize/1024)+' KB'):'–';
-    const rating = rec.rating!=null ? Number(rec.rating).toFixed(1) : '–';
+    const rating = rec.rating!=null && !Number.isNaN(Number(rec.rating)) ? Number(rec.rating).toFixed(1) : '–';
     tr.innerHTML = `
       <td>${escapeHTML(rec.manufacturer||'')}</td>
       <td>${escapeHTML(rec.fixture||'')}</td>
@@ -101,19 +107,23 @@ function renderTable(rows){
       <td>${size}</td>
       <td style="min-width:220px;">
         <div class="row" style="gap:6px">
-          <select data-rid="${rec.rid}" class="gdtf-modepick">
+          <select data-rid="${rec.rid}" class="gdtf-modepick" aria-label="Kies mode voor ${escapeHTML(rec.manufacturer||'')} ${escapeHTML(rec.fixture||'')}">
             <option value="">Pick mode…</option>
             ${modes.map((md,i)=> `<option value="${i}">${escapeHTML(md.name||'Mode')} • ${md.dmxfootprint??'?'}ch</option>`).join('')}
           </select>
-          <button data-act="add" data-rid="${rec.rid}">Add to Library</button>
-          <button data-act="dl" data-rid="${rec.rid}">Download</button>
+          <button data-act="add" data-rid="${rec.rid}" type="button">Add to Library</button>
+          <button data-act="dl" data-rid="${rec.rid}" type="button">Download</button>
         </div>
         <div class="muted" style="margin-top:6px">RID: ${rec.rid} • UUID: ${escapeHTML(rec.uuid||'')}</div>
       </td>
     `;
     tbody.appendChild(tr);
   });
-  $('#gdtf-count').textContent = `${sorted.length} result${sorted.length===1?'':'s'}`;
+  const c = $('#gdtf-count');
+  if(c){
+    const n = sorted.length|0;
+    c.textContent = `${n} result${n===1?'':'s'}`;
+  }
   updateSortHeaderUI();
 }
 
@@ -142,40 +152,132 @@ function applyAllFilters(){
   renderTable(rows);
 }
 
+/* ---------- Alphabet chips ---------- */
 function renderAlphaChips(){
   const host = $('#gdtf-alpha');
   if(!host) return;
   const letters = ['ALL'].concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split(''));
   host.innerHTML = '';
   letters.forEach(ch=>{
-    const a = document.createElement('button');
-    a.className = 'chip';
-    a.type = 'button';
-    a.textContent = ch === 'ALL' ? 'All' : ch;
-    if(g.alpha===ch) a.style.outline = '2px solid var(--accent)';
-    a.addEventListener('click', ()=>{
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.type = 'button';
+    btn.textContent = ch === 'ALL' ? 'All' : ch;
+    const active = g.alpha===ch;
+    if(active){
+      btn.style.outline = '2px solid var(--accent)';
+      btn.setAttribute('aria-pressed','true');
+    }else{
+      btn.removeAttribute('style');
+      btn.setAttribute('aria-pressed','false');
+    }
+    btn.addEventListener('click', ()=>{
       g.alpha = ch;
       renderAlphaChips();
       applyAllFilters();
     });
-    host.appendChild(a);
+    host.appendChild(btn);
   });
 }
 
-function enableSearchInputs(){
-  $('#gdtf-manu-input').disabled = false;
-  $('#gdtf-fixture-input').disabled = false;
-  $('#ta-fixture')?.classList.remove('ta-disabled');
+/* ---------- Search inputs / typeaheads (zonder lib) ---------- */
+function enableSearchInputs(enable=true){
+  const m = $('#gdtf-manu-input');
+  const f = $('#gdtf-fixture-input');
+  if(m) m.disabled = !enable;
+  if(f) f.disabled = !enable;
+  $('#ta-fixture')?.classList.toggle('ta-disabled', !enable);
 }
 
 let typeaheadListenersAttached = false;
 function setupTypeaheads(){
   if(typeaheadListenersAttached) return;
   typeaheadListenersAttached = true;
-  // ... (zelfde code als jouw versie, alleen met guard zodat listeners niet dubbel komen)
-  // ik laat de body weg om kort te blijven; zie jouw code.
+
+  const manuInput = $('#gdtf-manu-input');
+  const fixInput  = $('#gdtf-fixture-input');
+
+  if(manuInput){
+    manuInput.setAttribute('list','gdtf-manus-dl');
+    // bouw datalist dynamisch (of gebruik bestaand)
+    let dl = $('#gdtf-manus-dl');
+    if(!dl){
+      dl = document.createElement('datalist');
+      dl.id = 'gdtf-manus-dl';
+      document.body.appendChild(dl);
+    }
+    const refillManus = ()=>{
+      dl.innerHTML = g.index.manus.map(m=> `<option value="${escapeHTML(m)}">`).join('');
+    };
+    refillManus();
+
+    const applyManu = ()=>{
+      const val = (manuInput.value||'').trim();
+      g.manuSelected = g.index.byManu.has(val) ? val : '';
+      // Reset fixture selectie als manu wijzigt
+      g.fixSelected = '';
+      if(fixInput) fixInput.value = '';
+      refillFixtures();
+      applyAllFilters();
+    };
+    manuInput.addEventListener('change', applyManu);
+    manuInput.addEventListener('blur', applyManu);
+    manuInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ applyManu(); manuInput.blur(); } });
+  }
+
+  function refillFixtures(){
+    if(!fixInput) return;
+    let dl = $('#gdtf-fixtures-dl');
+    if(!dl){
+      dl = document.createElement('datalist');
+      dl.id = 'gdtf-fixtures-dl';
+      document.body.appendChild(dl);
+    }
+    fixInput.setAttribute('list','gdtf-fixtures-dl');
+
+    const manu = g.manuSelected;
+    let arr = [];
+    if(manu && g.index.fixturesByManu.has(manu)){
+      arr = Array.from(g.index.fixturesByManu.get(manu)).sort((a,b)=>a.localeCompare(b));
+    }else{
+      // globale lijst (fixture + manu)
+      arr = g.index.globalFixtures.map(o=> `${o.fixture} — ${o.manufacturer}`);
+    }
+    dl.innerHTML = arr.map(s=> `<option value="${escapeHTML(s)}">`).join('');
+  }
+
+  if(fixInput){
+    const applyFix = ()=>{
+      const raw = (fixInput.value||'').trim();
+      // Als invoer in vorm "Fixture — Manufacturer", haal echte fixture/manu eruit
+      let fix = raw, manu = g.manuSelected;
+      const m = raw.split('—');
+      if(m.length === 2){
+        fix = m[0].trim();
+        manu = m[1].trim();
+      }
+      // Alleen accepteren als ze bestaan
+      const manuOk = manu ? g.index.byManu.has(manu) : false;
+      const fixOk = manuOk ? g.index.fixturesByManu.get(manu)?.has(fix) : false;
+
+      g.manuSelected = manuOk ? manu : g.manuSelected;
+      g.fixSelected  = fixOk  ? fix  : '';
+
+      // Sync inputs naar “echte” keuzes
+      const manuInput = $('#gdtf-manu-input');
+      if(manuOk && manuInput) manuInput.value = manu;
+      if(!fixOk) fixInput.value = '';
+
+      applyAllFilters();
+    };
+    refillFixtures();
+    fixInput.addEventListener('change', applyFix);
+    fixInput.addEventListener('blur', applyFix);
+    fixInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ applyFix(); fixInput.blur(); } });
+  }
 }
 
+/* ---------- Auth / data ---------- */
 async function login(){
   try{
     setStatus('Logging in…');
@@ -200,11 +302,11 @@ async function login(){
 function logout(){
   g.loggedIn=false;
   $('#gdtf-getlist').disabled = true;
-  $('#gdtf-table tbody').innerHTML='';
-  g.list=g.filtered=[];
-  $('#gdtf-count').textContent='';
-  $('#gdtf-manu-input').value='';
-  $('#gdtf-fixture-input').value='';
+  $('#gdtf-table tbody')?.replaceChildren?.();
+  g.list = g.filtered = [];
+  const c = $('#gdtf-count'); if(c) c.textContent = '';
+  const mi = $('#gdtf-manu-input'); if(mi) mi.value = '';
+  const fi = $('#gdtf-fixture-input'); if(fi) fi.value = '';
   g.manuSelected=''; g.fixSelected='';
   g.alpha='ALL';
   renderAlphaChips();
@@ -226,7 +328,7 @@ async function getList(){
     setStatus(`Got ${g.list.length} revisions. Timestamp: ${data.timestamp||''}`,'ok');
 
     buildIndexes();
-    enableSearchInputs();
+    enableSearchInputs(true);
     setupTypeaheads();
     g.filtered = g.list.slice();
     g.alpha = 'ALL';
@@ -237,10 +339,12 @@ async function getList(){
   }
 }
 
+/* ---------- Library & Download ---------- */
 function addSelectedModeToLibrary(rid){
-  const row = g.filtered.find(r=> String(r.rid)===String(rid)) || g.list.find(r=> String(r.rid)===String(rid));
+  const ridStr = String(rid);
+  const row = g.filtered.find(r=> String(r.rid)===ridStr) || g.list.find(r=> String(r.rid)===ridStr);
   if(!row){ toast('RID not found','error'); return; }
-  const sel = document.querySelector(`select.gdtf-modepick[data-rid="${rid}"]`);
+  const sel = document.querySelector(`select.gdtf-modepick[data-rid="${ridStr}"]`);
   const ix = Number(sel?.value);
   const modes = normalizeModes(row.modes);
   const md = Number.isInteger(ix) && ix>=0 ? modes[ix] : null;
@@ -269,13 +373,14 @@ async function downloadGdtf(rid){
     }
     const blob = await res.blob();
     const row = g.list.find(x=> String(x.rid)===String(rid));
-    const fname = `${(row?.manufacturer||'Manuf').replace(/\W+/g,'_')}-${(row?.fixture||'Fixture').replace(/\W+/g,'_')}-${(row?.revision||'rev').replace(/\W+/g,'_')}-RID${rid}.gdtf`;
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
-    document.body.appendChild(a); a.click(); a.remove();
+    const safe = (s)=> (s||'').replace(/\W+/g,'_') || 'file';
+    const fname = `${safe(row?.manufacturer||'Manuf')}-${safe(row?.fixture||'Fixture')}-${safe(row?.revision||'rev')}-RID${rid}.gdtf`;
+    dlBlob(fname, blob);
     toast('Downloaded GDTF','success');
   }catch{ toast('Download error.','warning'); }
 }
 
+/* ---------- Init / Events ---------- */
 export function initGdtf(){
   $('#gdtf-login')?.addEventListener('click', login);
   $('#gdtf-logout')?.addEventListener('click', logout);
@@ -284,6 +389,7 @@ export function initGdtf(){
   $$('#gdtf-table thead th.sortable').forEach(th=>{
     th.addEventListener('click', ()=>{
       const key = th.dataset.sort;
+      if(!key) return;
       if(g.sort.key === key){ g.sort.dir = (g.sort.dir === 'asc') ? 'desc' : 'asc'; }
       else{ g.sort.key = key; g.sort.dir = 'asc'; }
       renderTable(g.filtered);
@@ -296,4 +402,7 @@ export function initGdtf(){
     if(btn.dataset.act==='add') addSelectedModeToLibrary(rid);
     if(btn.dataset.act==='dl') downloadGdtf(rid);
   });
+
+  // disable inputs until list is loaded
+  enableSearchInputs(false);
 }

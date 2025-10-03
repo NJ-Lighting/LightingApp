@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Offline – LightingApp</title>
 
+  <!-- SEO: offline pagina wil je niet indexeren -->
+  <meta name="robots" content="noindex" />
+
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
@@ -14,16 +17,76 @@
   <link rel="stylesheet" href="/css/nav.css" />
 </head>
 <body>
-  <main class="app" id="app">
+  <a href="#main" class="sr-only">Sla navigatie over</a>
+
+  <main class="app" id="main">
     <section class="card">
-      <h2>Offline</h2>
-      <p>Je bent offline. LightingApp werkt ook zonder internet. Zodra je weer online bent, ververs de pagina.</p>
-      <p><a class="btn-ghost" href="/index.html">Terug naar start</a></p>
+      <h1 style="margin-top:0">Offline</h1>
+      <p class="muted" id="offline-msg">
+        Je bent offline. LightingApp werkt ook zonder internet. Zodra er weer verbinding is, gaan we automatisch door.
+      </p>
+
+      <div class="chips" style="margin:12px 0">
+        <span class="badge" id="net-badge">Status: offline</span>
+      </div>
+
+      <div class="row">
+        <a class="btn-ghost" href="/index.html">Terug naar start</a>
+        <button class="btn" id="retry-btn" type="button" disabled>Opnieuw proberen</button>
+      </div>
+
+      <p class="muted" style="margin-top:10px">
+        Tip: installeer LightingApp als PWA (“Toevoegen aan beginscherm”) voor de beste offline-ervaring.
+      </p>
     </section>
   </main>
 
-  <!-- SW + Modules -->
+  <!-- SW + Modules (optioneel; kan helpen updates weer te pakken) -->
   <script src="/js/sw-register.js"></script>
   <script type="module" src="/js/nav.js"></script>
+
+  <script>
+    (function () {
+      const badge = document.getElementById('net-badge');
+      const retry = document.getElementById('retry-btn');
+      const msg   = document.getElementById('offline-msg');
+
+      function setOnlineUI(online) {
+        if (online) {
+          badge.textContent = 'Status: online';
+          retry.disabled = false;
+          retry.textContent = 'Ga verder';
+          msg.textContent = 'Er is weer verbinding. We gaan zo verder…';
+        } else {
+          badge.textContent = 'Status: offline';
+          retry.disabled = true;
+          retry.textContent = 'Opnieuw proberen';
+          msg.textContent = 'Je bent offline. LightingApp werkt ook zonder internet. Zodra er weer verbinding is, gaan we automatisch door.';
+        }
+      }
+
+      // initial state
+      setOnlineUI(navigator.onLine);
+
+      // auto-herstel zodra online
+      window.addEventListener('online', () => {
+        setOnlineUI(true);
+        // korte delay zodat SW/DSN klaar is, daarna terug naar vorige pagina of start
+        setTimeout(() => {
+          if (document.referrer) history.back();
+          else location.replace('/index.html');
+        }, 400);
+      });
+
+      window.addEventListener('offline', () => setOnlineUI(false));
+
+      retry.addEventListener('click', () => {
+        if (!navigator.onLine) return;
+        // probeer eerst vorige pagina, anders start
+        if (document.referrer) history.back();
+        else location.replace('/index.html');
+      });
+    })();
+  </script>
 </body>
 </html>

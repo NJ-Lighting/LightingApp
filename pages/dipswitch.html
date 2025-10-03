@@ -5,28 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LightingApp – DIP-Switch Calculator</title>
 
-  <!-- PWA (optioneel) -->
+  <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
 
-  <!-- Globale styles -->
+  <!-- Styles -->
   <link rel="stylesheet" href="/css/style.css" />
-  <!-- Let op: GEEN dipswitch.css — alles zit in style.css -->
+  <link rel="stylesheet" href="/css/nav.css" />
 </head>
 <body>
-  <!-- Globale header + hamburger wordt geïnjecteerd door /js/nav.js -->
+  <a href="#main" class="sr-only">Sla navigatie over</a>
 
-  <main class="app" id="app">
+  <main class="app" id="main">
     <section class="card">
-      <h2>DIP-Switch Calculator</h2>
+      <h1 style="margin-top:0">DIP-Switch Calculator</h1>
       <p class="muted">
         Voer een DMX-adres (1–511) in of tik schakelaars aan. De nummertjes zijn <b>1 → 9</b> bij links→rechts
         en <b>9 → 1</b> bij rechts→links. Met <i>ON-richting</i> kies je of “ON” boven of beneden zit.
         Je keuzes worden onthouden (localStorage).
       </p>
 
+      <!-- A11y live region (optioneel, gebruikt door js/dipswitch.page.js) -->
+      <span id="addr-live" class="sr-only" aria-live="polite"></span>
+
       <div class="row g8">
-        <div class="field" style="max-width:200px">
+        <div class="field" style="max-width:220px">
           <label for="addr">DMX adres (1–511)</label>
           <input id="addr" type="number" min="1" max="511" value="1" inputmode="numeric" />
         </div>
@@ -54,7 +57,8 @@
     </section>
   </main>
 
-  <!-- Scripts -->
+  <!-- SW + Modules -->
+  <script src="/js/sw-register.js"></script>
   <script type="module" src="/js/nav.js"></script>
   <script type="module" src="/js/dipswitch.page.js"></script>
 </body>

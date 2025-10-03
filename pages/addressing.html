@@ -14,28 +14,30 @@
   <link rel="stylesheet" href="/css/nav.css" />
 </head>
 <body>
-  <main class="app" id="app">
+  <a href="#main" class="sr-only">Sla navigatie over</a>
+
+  <main class="app" id="main">
     <section class="card">
-      <h2>Bulk Fixture Addressing</h2>
+      <h1 style="margin-top:0">Bulk Fixture Addressing</h1>
 
       <!-- Plan builder -->
       <div class="row" style="margin-bottom:6px">
         <div class="field" style="flex:2; min-width:280px">
           <label for="addr-fixture-input">Add fixture (from Library)</label>
           <div class="typeahead" id="ta-addr-fixture">
-            <input id="addr-fixture-input" placeholder="Search brand, model, mode…" autocomplete="off" />
-            <div class="ta-list" id="addr-fixture-list" role="listbox"></div>
+            <input id="addr-fixture-input" placeholder="Search brand, model, mode…" autocomplete="off" aria-controls="addr-fixture-list" aria-expanded="false" role="combobox" />
+            <div class="ta-list" id="addr-fixture-list" role="listbox" aria-label="Fixture suggestions"></div>
           </div>
         </div>
         <div class="field" style="max-width:140px">
           <label for="addr-fixture-qty">Quantity</label>
-          <input id="addr-fixture-qty" type="number" min="1" value="1" />
+          <input id="addr-fixture-qty" type="number" min="1" value="1" inputmode="numeric" />
         </div>
-        <div class="field" style="max-width:220px">
+        <div class="field" style="max-width:260px">
           <label aria-hidden="true">&nbsp;</label>
           <div class="row">
-            <button class="btn-primary" id="addr-fixture-add">Add to Plan</button>
-            <button class="btn-ghost" id="addr-plan-clear">Clear Plan</button>
+            <button class="btn-primary" id="addr-fixture-add" type="button">Add to Plan</button>
+            <button class="btn-ghost" id="addr-plan-clear" type="button">Clear Plan</button>
           </div>
         </div>
       </div>
@@ -45,12 +47,12 @@
         <table id="addr-plan-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Fixture</th>
-              <th>Mode</th>
-              <th>Footprint</th>
-              <th>Qty</th>
-              <th>Actions</th>
+              <th scope="col">#</th>
+              <th scope="col">Fixture</th>
+              <th scope="col">Mode</th>
+              <th scope="col">Footprint</th>
+              <th scope="col">Qty</th>
+              <th scope="col">Actions</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -61,40 +63,40 @@
       <div class="row">
         <div class="field">
           <label for="addr-start">Start Address</label>
-          <input id="addr-start" type="number" min="1" max="512" value="1" />
+          <input id="addr-start" type="number" min="1" max="512" value="1" inputmode="numeric" />
         </div>
         <div class="field">
           <label for="addr-universe">Start Universe</label>
-          <input id="addr-universe" type="number" min="1" value="1" />
+          <input id="addr-universe" type="number" min="1" value="1" inputmode="numeric" />
         </div>
         <div class="field">
           <label for="addr-footprint">Footprint</label>
-          <input id="addr-footprint" type="number" min="1" value="16" />
+          <input id="addr-footprint" type="number" min="1" value="16" inputmode="numeric" />
         </div>
         <div class="field">
           <label for="addr-quantity">Quantity</label>
-          <input id="addr-quantity" type="number" min="1" value="1" />
+          <input id="addr-quantity" type="number" min="1" value="1" inputmode="numeric" />
         </div>
       </div>
 
       <div class="row">
         <div class="field">
           <label for="addr-gap">Gap</label>
-          <input id="addr-gap" type="number" min="0" value="0" />
+          <input id="addr-gap" type="number" min="0" value="0" inputmode="numeric" />
         </div>
         <div class="field">
           <label for="addr-mode">Overflow</label>
           <select id="addr-mode">
             <option value="reset" selected>Reset at new universe</option>
-            <option value="carry">Carry over</option>
+            <option value="roll">Carry over</option>
           </select>
         </div>
-        <div class="field">
+        <div class="field" style="max-width:420px">
           <label aria-hidden="true">&nbsp;</label>
-          <div class="row">
-            <button class="btn-primary" id="addr-generate">Generate</button>
-            <button class="btn-ghost" id="addr-export">Export CSV</button>
-            <button class="btn-ghost" id="addr-copy">Copy Table</button>
+          <div class="row row-mini">
+            <button class="btn-primary" id="addr-generate" type="button">Generate</button>
+            <button class="btn-ghost" id="addr-export" type="button">Export CSV</button>
+            <button class="btn-ghost" id="addr-copy" type="button">Copy Table</button>
           </div>
         </div>
       </div>
@@ -104,13 +106,13 @@
         <table id="addr-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>Universe</th>
-              <th>Address</th>
-              <th>Footprint</th>
-              <th>End</th>
-              <th>Notes</th>
+              <th scope="col">#</th>
+              <th scope="col">Name</th>
+              <th scope="col">Universe</th>
+              <th scope="col">Address</th>
+              <th scope="col">Footprint</th>
+              <th scope="col">End</th>
+              <th scope="col">Notes</th>
             </tr>
           </thead>
           <tbody></tbody>

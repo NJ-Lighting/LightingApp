@@ -1,18 +1,18 @@
 :root{
-  --bg: #0b0f15;
-  --panel: #101724;
-  --panel-2: #0f1521;
-  --muted: #9aa4b2;
-  --text: #e7eaf0;
-  --accent: #22d3ee;
-  --accent-2: #60a5fa;
-  --ok: #22c55e;
-  --warn: #f59e0b;
-  --err: #ef4444;
-  --border: #1f2a3a;
-  --chip: #0e2238;
-  --shadow: 0 6px 20px rgba(0,0,0,.35);
-  --radius: 12px;
+  --bg:#0b0f15;
+  --panel:#101724;
+  --panel-2:#0f1521;
+  --muted:#9aa4b2;
+  --text:#e7eaf0;
+  --accent:#22d3ee;
+  --accent-2:#60a5fa;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --err:#ef4444;
+  --border:#1f2a3a;
+  --chip:#0e2238;
+  --shadow:0 6px 20px rgba(0,0,0,.35);
+  --radius:16px;
 
   /* DIP thema */
   --dip-bg:#0e1421;
@@ -24,47 +24,141 @@
 }
 
 * { box-sizing: border-box; }
-
-html, body {
-  margin: 0; padding: 0; height: 100%;
-  background: var(--bg); color: var(--text);
-  font-family: system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,"Noto Sans";
-  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+html, body { height: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+  line-height:1.45;
 }
 
-a { color: inherit; }
-a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px;
+/* Links & focus */
+a { color: inherit; text-decoration: none; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
 }
 
-/* Layout */
-.app { max-width: 1100px; margin: 0 auto; padding: 16px; }
-.header, .footer { padding: 12px 0; }
-.header h1 { margin: 0; font-size: 1.5rem; }
-.footer { text-align: center; font-size: .9rem; color: var(--muted); }
-
-/* Simple form/layout utilities */
-.row { display: flex; flex-wrap: wrap; gap: 10px; }
-.row.g8 { gap: 8px; }
-.row-mini { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.field { display: flex; flex-direction: column; gap: 6px; min-width: 120px; }
-.field label { font-size: .85rem; color: var(--muted); }
-
-/* Text helpers */
-.muted { color: var(--muted); }
-
-/* Grid of cards */
-.grid {
-  display: grid; gap: 16px; margin-top: 24px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+/* Containers */
+.container{
+  width:100%;
+  max-width:1100px;
+  margin-inline:auto;
+  padding-inline:16px;
 }
-.card {
-  background: var(--panel); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 16px; text-decoration: none; color: inherit;
-  box-shadow: var(--shadow); transition: transform .15s ease, border-color .15s ease;
+
+/* Header / Footer */
+.site-header{
+  background:linear-gradient(0deg, var(--panel), var(--panel-2));
+  border-bottom:1px solid var(--border);
 }
-.card:hover { transform: translateY(-2px); border-color: var(--accent-2); }
-.card h3 { margin: 0 0 6px; }
+.site-header .brand{
+  margin:0;
+  padding:16px 0 8px;
+  font-size:1.25rem;
+}
+.main-nav .nav-list{
+  list-style:none;
+  display:flex;
+  gap:12px;
+  padding:0;
+  margin:0 0 12px 0;
+  flex-wrap:wrap;
+}
+.nav-link{
+  display:inline-block;
+  padding:10px 12px;
+  border-radius:10px;
+  text-decoration:none;
+  color:var(--text);
+  background:transparent;
+  border:1px solid transparent;
+  min-height:44px; /* Touch target */
+}
+.nav-link:hover{ background:rgba(255,255,255,.04); border-color:var(--border); }
+.nav-link:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+  border-color:transparent;
+}
+
+.site-footer{
+  margin-top:24px;
+  border-top:1px solid var(--border);
+  background:var(--panel-2);
+  padding:16px 0;
+}
+
+/* Card */
+.card{
+  background:linear-gradient(0deg, var(--panel), var(--panel-2));
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:16px;
+  margin:20px 0;
+}
+.card > h2{ margin:0 0 8px 0; }
+.muted{ color:var(--muted); }
+
+/* Tiles (touch-friendly) */
+.tile-grid{
+  list-style:none;
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(250px,1fr));
+  gap:12px;
+  padding:0;
+  margin:12px 0 0 0;
+}
+.tile{ min-width:0; }
+.tile-btn{
+  display:block;
+  text-decoration:none;
+  color:var(--text);
+  background:var(--chip);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  min-height:64px;                 /* Touch target */
+  transition:transform .06s ease, box-shadow .06s ease, background .2s ease;
+}
+.tile-btn:hover{ transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,0,0,.35); }
+.tile-btn:active{ transform:translateY(0); }
+.tile-btn:focus-visible{
+  outline:3px solid var(--accent);
+  outline-offset:3px;
+}
+
+/* Binnen de tile */
+.tile-title{ font-weight:600; margin:0 0 6px 0; }
+.tile-desc{ color:var(--muted); margin:0; font-size:.95rem; }
+
+/* Skip link – alleen zichtbaar bij focus */
+.skip-link{
+  position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden;
+}
+.skip-link:focus{
+  position:fixed; left:16px; top:16px; width:auto; height:auto; padding:10px 12px;
+  background:#000; color:#fff; border-radius:10px; z-index:10000;
+  outline:2px solid var(--accent);
+}
+
+/* Globale toegankelijke focus-fallback */
+a, button, [role="button"], input, select, textarea{
+  -webkit-tap-highlight-color: transparent;
+}
+:focus-visible{
+  outline:2px solid var(--accent-2);
+  outline-offset:2px;
+}
+
+/* Touch target baseline voor buttons/links (zonder layout te breken) */
+button, .btn, .nav-link, .tile-btn{
+  min-height:44px;                 /* Apple HIG */
+  padding-block:10px;
+}
 
 /* Buttons */
 button, .btn, .btn-primary, .btn-ghost {
@@ -156,7 +250,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
   padding: 8px 12px; border-radius: var(--radius); color: var(--text);
 }
 
-/* === DIP Switch Calculator Layout === */
+/* Hover-tweak */
+@media (hover:hover){
+  .tile-btn:hover{ background:rgba(255,255,255,.04); }
+}
+
+/* =========================
+   === DIP Switch Layout ===
+   ========================= */
+
+/* DIP bank + tegels eromheen */
 .dips {
   display: flex; flex-wrap: nowrap; gap: 12px; margin-top: 16px;
   overflow-x: auto; padding-bottom: 6px;
@@ -239,7 +342,7 @@ label.toggle:focus-within {
 .dips.on-down .legend.on  { top: auto; bottom: -12px; }
 .dips.on-down .legend.off { bottom: auto; top: -10px; }
 
-/* (niet meer nodig, maar laten staan kan geen kwaad) */
+/* Horizontale flip (optioneel) */
 .dips.h-rtl { flex-direction: row-reverse; }
 
 /* ── Pijlknoppen ─────────────── */
@@ -256,10 +359,10 @@ label.toggle:focus-within {
   border-right: 7px solid transparent;
 }
 .arrow.up{
-  border-top: 12px solid var(--accent);   /* ▲ = toon actie: naar boven */
+  border-top: 12px solid var(--accent);   /* ▲ = naar boven */
 }
 .arrow.down{
-  border-bottom: 12px solid var(--accent);/* ▼ = toon actie: naar beneden */
+  border-bottom: 12px solid var(--accent);/* ▼ = naar beneden */
 }
 .arrow-label { font-weight: 600; color: var(--text); }
 
@@ -306,7 +409,7 @@ label.toggle:focus-within {
   padding: 6px 12px;
 }
 
-/* Touch targets groter */
+/* Touch targets groter (coarse pointers) */
 @media (pointer: coarse) {
   .toggle { width: 32px; height: 64px; margin: 12px 0; }
   .toggle .knob::after { width: 24px; height: 24px; transform: translate(-50%, 36px); }

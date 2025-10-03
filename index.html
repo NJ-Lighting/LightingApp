@@ -5,35 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>LightingApp – Field Tools</title>
 
+  <!-- SEO -->
+  <meta name="description" content="Snelle veldtools voor lichttechnici: bulk addressing, DIP-switch calculator en GDTF fixture library." />
+  <link rel="canonical" href="https://lighting-app-seven.vercel.app/index.html" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="LightingApp – Field Tools" />
+  <meta property="og:description" content="Tools voor lighting engineers in het veld: bulk addressing, DIP-switch en GDTF library." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://lighting-app-seven.vercel.app/index.html" />
+  <meta property="og:image" content="/icons/icon-512.png" />
+
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
-  <link rel="icon" sizes="192x192" href="/assets/icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png" />
+  <link rel="icon" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
   <!-- Styles -->
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/nav.css" />
 </head>
 <body>
-  <main class="app" id="app">
+  <a href="#main" class="sr-only">Sla navigatie over</a>
+
+  <main class="app" id="main">
+    <section class="card" style="margin-top:12px">
+      <h1 style="margin:0">LightingApp</h1>
+      <p class="muted">Field tools voor lichttechnici. Geoptimaliseerd voor mobiel/tablet en offline te gebruiken als PWA.</p>
+      <div class="chips" style="margin:12px 0">
+        <span class="badge">⚡ Snel</span>
+        <span class="badge">📱 PWA/offline</span>
+        <span class="badge">🧰 Praktische tools</span>
+      </div>
+    </section>
+
     <section class="grid">
-      <a class="card" href="/addressing.html">
+      <a class="card" href="/pages/addressing.html" aria-label="Open Bulk Addressing">
         <h3>Bulk Addressing</h3>
         <p class="muted">Patch meerdere fixture types tegelijk</p>
       </a>
 
-      <a class="card" href="/dipswitch.html">
+      <a class="card" href="/pages/dipswitch.html" aria-label="Open DIP-Switch Calculator">
         <h3>DIP-Switch Calculator</h3>
         <p class="muted">DMX adres ⇄ schakelaars</p>
       </a>
 
-      <a class="card" href="/gdtf.html">
+      <a class="card" href="/pages/gdtf.html" aria-label="Open GDTF Library">
         <h3>Fixture Library (GDTF)</h3>
         <p class="muted">Zoek fabrikant / model / naam</p>
       </a>
 
-      <a class="card" href="/about.html">
+      <a class="card" href="/pages/about.html" aria-label="Open About">
         <h3>About</h3>
         <p class="muted">Over de app</p>
       </a>

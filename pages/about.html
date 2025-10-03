@@ -3,32 +3,86 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>LightingApp – About</title>
+  <title>About • LightingApp – Field Tools</title>
+
+  <!-- SEO -->
+  <meta name="description" content="LightingApp biedt snelle veldtools voor lichttechnici: bulk addressing, DIP-switch calculator en een GDTF fixture library." />
+  <link rel="canonical" href="https://lighting-app-seven.vercel.app/pages/about.html" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="LightingApp – Field Tools" />
+  <meta property="og:description" content="Tools voor lighting engineers in het veld: bulk addressing, DIP-switch, GDTF library." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://lighting-app-seven.vercel.app/pages/about.html" />
+  <meta property="og:image" content="/icons/icon-512.png" />
 
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0b0f15" />
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
   <!-- Styles -->
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/nav.css" />
 </head>
 <body>
-  <main class="app" id="app">
-    <section class="card">
-      <h2>About</h2>
-      <p>LightingApp — tools voor lighting engineers in het veld.</p>
-      <ul>
-        <li>Bulk Addressing</li>
-        <li>DIP-Switch Calculator</li>
-        <li>Fixture Library (GDTF)</li>
-      </ul>
-      <p>Made by NJ-Lighting.</p>
+  <a href="#main" class="sr-only">Sla navigatie over</a>
+
+  <main class="app" id="main">
+    <section class="card" style="margin-top:12px">
+      <h1 style="margin-top:0">Over LightingApp</h1>
+      <p class="muted">LightingApp is een set snelle veldtools voor lichttechnici. Geoptimaliseerd voor mobiel en tablet, werkt offline als PWA.</p>
+
+      <div class="chips" style="margin:12px 0">
+        <span class="badge">⚡ Snelle UI</span>
+        <span class="badge">📱 PWA/offline</span>
+        <span class="badge">🧰 Praktische tools</span>
+      </div>
     </section>
+
+    <section class="grid">
+      <a class="card" href="/pages/addressing.html">
+        <h3>Bulk Addressing</h3>
+        <p class="muted">Maak snel DMX-patches voor meerdere fixtures en modi, met universe-overloop.</p>
+      </a>
+      <a class="card" href="/pages/dipswitch.html">
+        <h3>DIP-switch Calculator</h3>
+        <p class="muted">Adres ↔ schakelaars, met oriëntatie en L/R-spiegel zoals op de fixture.</p>
+      </a>
+      <a class="card" href="/pages/gdtf.html">
+        <h3>GDTF Library</h3>
+        <p class="muted">Zoek revisies, kies mode en voeg toe aan je persoonlijke library.</p>
+      </a>
+    </section>
+
+    <section class="card">
+      <h2>Credits</h2>
+      <p>Gemaakt door <strong>NJ-Lighting</strong>. UI ontworpen met focus op field-use: grote touch-targets, leesbare contrasten en snelle workflows.</p>
+      <div class="row-mini" style="margin-top:8px">
+        <span class="badge">Versie v1</span>
+        <span class="badge">© <span id="about-year"></span> LightingApp</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Installeren als app</h2>
+      <p class="muted">Open deze site in je browser en kies “Toevoegen aan beginscherm”. De app werkt dan ook offline.</p>
+    </section>
+
+    <footer class="footer">
+      <div>© <span id="footer-year"></span> LightingApp • Field Tools</div>
+    </footer>
   </main>
 
   <!-- SW + Modules -->
   <script src="/js/sw-register.js"></script>
   <script type="module" src="/js/nav.js"></script>
+  <script>
+    // simpele jaartal-injectie
+    const y = new Date().getFullYear();
+    document.getElementById('about-year').textContent = y;
+    document.getElementById('footer-year').textContent = y;
+  </script>
 </body>
 </html>

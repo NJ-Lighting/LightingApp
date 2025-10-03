@@ -1,36 +1,51 @@
 {
+  "id": "/",
   "name": "LightingApp – Field Tools",
   "short_name": "LightingApp",
   "description": "Tools voor lighting engineers in het veld: bulk addressing, DIP-switch, fixture library (GDTF) en meer.",
+  "lang": "nl",
+  "dir": "ltr",
+
   "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+
   "background_color": "#0b0f15",
   "theme_color": "#0b0f15",
-  "lang": "nl",
+  "categories": ["tools", "productivity", "utilities"],
+  "prefer_related_applications": false,
+
   "icons": [
+    { "src": "/icons/icon-192.png",       "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png",       "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-192.png",   "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/maskable-512.png",   "sizes": "512x512", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/monochrome-192.png", "sizes": "192x192", "type": "image/png", "purpose": "monochrome" }
+  ],
+
+  "shortcuts": [
     {
-      "src": "assets/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
+      "name": "Bulk Addressing",
+      "short_name": "Addressing",
+      "url": "/pages/addressing.html",
+      "description": "Patch meerdere fixture-types.",
+      "icons": [{ "src": "/icons/shortcut-addressing.png", "sizes": "96x96", "type": "image/png", "purpose": "any" }]
     },
     {
-      "src": "assets/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "name": "DIP-switch",
+      "short_name": "DIP",
+      "url": "/pages/dipswitch.html",
+      "description": "DMX-adres ↔ schakelaars.",
+      "icons": [{ "src": "/icons/shortcut-dip.png", "sizes": "96x96", "type": "image/png", "purpose": "any" }]
     },
     {
-      "src": "assets/icons/maskable-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "assets/icons/maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "name": "GDTF Library",
+      "short_name": "GDTF",
+      "url": "/pages/gdtf.html",
+      "description": "Zoek & download GDTF.",
+      "icons": [{ "src": "/icons/shortcut-gdtf.png", "sizes": "96x96", "type": "image/png", "purpose": "any" }]
     }
   ]
 }
