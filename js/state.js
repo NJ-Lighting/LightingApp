@@ -31,17 +31,13 @@ const KEYS = {
 };
 
 /* ---------------- Broadcasting (BC + storage fallback) ---------------- */
-
 function publish(msg){
   // 1) BroadcastChannel als beschikbaar
   try { CH?.postMessage(msg); } catch {}
-
-  // 2) storage-event fallback: schrijf een vluchtig bericht op 1 key
+  // 2) storage-event fallback
   try {
     const payload = JSON.stringify({ msg, t: Date.now(), r: Math.random() });
     safeLS.setItem(KEYS.bus, payload);
-    // Optioneel meteen weer clearen (niet nodig, setItem triggert al event)
-    // safeLS.removeItem(KEYS.bus);
   } catch {}
 }
 
@@ -63,15 +59,12 @@ function subscribe(fn){
 }
 
 /* ---------------- Helpers ---------------- */
-
 function jsonGet(key, fallback){
   try {
     const raw = safeLS.getItem(key);
     if (!raw) return fallback;
     return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
+  } catch { return fallback; }
 }
 function jsonSet(key, val){
   try { safeLS.setItem(key, JSON.stringify(val)); } catch {}
@@ -90,26 +83,16 @@ function strDel(key){
 }
 
 /* ---------------- Public API ---------------- */
-
 export const state = {
   // --- Address plan ---
-  getAddr() {
-    return jsonGet(KEYS.addr, {});
-  },
-  setAddr(obj) {
-    jsonSet(KEYS.addr, obj || {});
-    publish({ type: 'addr:update', payload: obj || {} });
-  },
-  clearAddr() {
-    strDel(KEYS.addr);
-    publish({ type: 'addr:clear' });
-  },
+  getAddr() { return jsonGet(KEYS.addr, {}); },
+  setAddr(obj) { jsonSet(KEYS.addr, obj || {}); publish({ type: 'addr:update', payload: obj || {} }); },
+  clearAddr() { strDel(KEYS.addr); publish({ type: 'addr:clear' }); },
 
   // --- Fixture library ---
   getLibrary() {
     const cur = jsonGet(KEYS.lib, null);
     if (Array.isArray(cur)) return cur;
-
     // seed library on first run
     const seed = [
       {
@@ -151,27 +134,21 @@ export const state = {
   addFixture(rec) {
     const arr = state.getLibrary();
     const item = { id: rec?.id || crypto.randomUUID(), ...rec };
-
-    // lichte dedupe op id
     const idx = arr.findIndex(x => x.id === item.id);
-    if (idx >= 0) arr[idx] = item;
-    else arr.push(item);
-
+    if (idx >= 0) arr[idx] = item; else arr.push(item);
     state.setLibrary(arr);
   },
-  clearLibrary() {
-    strDel(KEYS.lib);
-    publish({ type: 'lib:clear' });
-  },
+  clearLibrary() { strDel(KEYS.lib); publish({ type: 'lib:clear' }); },
 
   // --- DIP switch ---
+  // Let op: UI en bitmask gaan uit van 9 schakelaars → adresbereik 1..511.
+  // Daarom hier ook 1..511 afdwingen (geen 512 wegschrijven).
   getDip() {
     const v = strGetInt(KEYS.dip, 1);
-    // Bewust 1..512 laten zoals je had; UI clamped al naar 1..511
-    return v >= 1 && v <= 512 ? v : 1;
+    return (v >= 1 && v <= 511) ? v : 1;
   },
   setDip(v) {
-    const a = Math.max(1, Math.min(512, Number(v) || 1));
+    const a = Math.max(1, Math.min(511, Number(v) || 1));
     strSet(KEYS.dip, a);
     publish({ type: 'dip:update', payload: a });
   },

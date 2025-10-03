@@ -1,7 +1,6 @@
 // ---- LightingApp Service Worker (app-shell + offline) ----
-
 // ✏️ Verhoog deze bij elke wijziging aan APP_SHELL (mag handmatig of via CI)
-const APP_VERSION = 'la-v3';
+const APP_VERSION = 'la-v4';
 
 // Alles wat je app nodig heeft om op te starten + belangrijkste pagina’s.
 // (Let op: bestandsnamen komen 1-op-1 uit je repo.)
@@ -81,8 +80,7 @@ self.addEventListener('activate', (event) => {
 
 // -- Helper: HTML detectie
 function wantsHTML(req) {
-  return req.mode === 'navigate' ||
-         (req.headers.get('accept') || '').includes('text/html');
+  return req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
 }
 
 // -- Fetch strategie:
@@ -108,9 +106,9 @@ self.addEventListener('fetch', (event) => {
       } catch {
         // Probeer cache, anders offline.html
         const cache = await caches.open(CACHE_NAME);
-        return (await cache.match(request)) ||
-               (await cache.match('/offline.html')) ||
-               new Response('Offline', { status: 503, statusText: 'Offline' });
+        return (await cache.match(request))
+            || (await cache.match('/offline.html'))
+            || new Response('Offline', { status: 503, statusText: 'Offline' });
       }
     })());
     return;
