@@ -181,8 +181,8 @@ function renderCard(it) {
   el.innerHTML = `
     <div class="row" style="justify-content:space-between; align-items:flex-start; gap:8px;">
       <div>
-        <div class="muted" style="font-size:.85rem">${it.manufacturer || '-'}</div>
-        <h3 style="margin:.25rem 0 0 0">${it.name || '(naamloos)'}</h3>
+        <div class="muted" style="font-size:.85rem">${escapeHtml(it.manufacturer || '-')}</div>
+        <h3 style="margin:.25rem 0 0 0">${escapeHtml(it.name || '(naamloos)')}</h3>
       </div>
       <span class="chip" style="background:var(--chip); border:1px solid ${chipColor};">${badge}</span>
     </div>
@@ -228,7 +228,7 @@ function renderCard(it) {
       localStorage.setItem('lightingapp.mylibrary.lastSelected', JSON.stringify({ id, at: Date.now() }));
       // Navigeer optioneel naar bulk addressing als je wilt:
       // location.href = '/pages/addressing.html'; // desgewenst uitcommentariëren
-      alert('Geselecteerd. Open je Bulk Addressing pagina om verder te gaan.');
+      alert('Fixture geselecteerd. Open de Bulk Addressing pagina om verder te gaan.');
     }
   });
 

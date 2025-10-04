@@ -1,5 +1,5 @@
 <!-- LightingApp – My Library (content-only, huisstijl) -->
-<section class="app">
+<main class="app" id="app">
   <div class="card">
     <h2>Mijn Fixture Library</h2>
 
@@ -7,7 +7,7 @@
     <div class="row g8 wrap items-end">
       <div class="field grow min-240">
         <label for="q">Zoeken</label>
-        <input id="q" type="search" placeholder="Zoek op merk, naam, mode, notities…" />
+        <input id="q" type="search" inputmode="search" placeholder="Zoek op merk, naam, mode, notities…" />
       </div>
 
       <div class="field">
@@ -45,7 +45,7 @@
     <!-- Grid met kaarten -->
     <div id="grid" class="grid mt12"></div>
   </div>
-</section>
+</main>
 
 <!-- Dialoog: Fixture toevoegen/bewerken -->
 <dialog id="dlg-edit" class="dialog">
@@ -55,18 +55,18 @@
     <div class="row g12 wrap">
       <div class="field grow min-220">
         <label for="f-man">Merk *</label>
-        <input id="f-man" required />
+        <input id="f-man" type="text" required />
       </div>
       <div class="field grow min-220">
         <label for="f-name">Naam *</label>
-        <input id="f-name" required />
+        <input id="f-name" type="text" required />
       </div>
     </div>
 
     <div class="row g12 wrap">
       <div class="field grow min-220">
         <label for="f-mode">Mode</label>
-        <input id="f-mode" placeholder="bv. 21ch, Standard" />
+        <input id="f-mode" type="text" placeholder="bv. 21ch, Standard" />
       </div>
       <div class="field w-170">
         <label for="f-footprint">DMX footprint</label>
