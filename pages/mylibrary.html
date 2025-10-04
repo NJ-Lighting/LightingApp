@@ -1,91 +1,111 @@
-<!-- LightingApp – My Library (content-only, huisstijl) -->
-<main class="app" id="app">
-  <div class="card">
-    <h2>Mijn Fixture Library</h2>
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>LightingApp – Mijn Library</title>
 
-    <!-- Toolbar -->
-    <div class="row g8 wrap items-end">
-      <div class="field grow min-240">
-        <label for="q">Zoeken</label>
-        <input id="q" type="search" inputmode="search" placeholder="Zoek op merk, naam, mode, notities…" />
+  <!-- PWA / Icons (consistent met andere pagina’s) -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0b0f15" />
+  <link rel="icon" sizes="192x192" href="/assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png" />
+
+  <!-- HUISSTIJL -->
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/nav.css" />
+</head>
+<body>
+  <main class="app" id="app">
+    <div class="card">
+      <h2>Mijn Fixture Library</h2>
+
+      <!-- Toolbar -->
+      <div class="row g8 wrap items-end">
+        <div class="field grow min-240">
+          <label for="q">Zoeken</label>
+          <input id="q" type="search" inputmode="search" placeholder="Zoek op merk, naam, mode, notities…" />
+        </div>
+
+        <div class="field">
+          <label for="filter">Bron</label>
+          <select id="filter">
+            <option value="all">Alles</option>
+            <option value="local">Eigen</option>
+            <option value="gdtf">GDTF</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="sort">Sorteren</label>
+          <select id="sort">
+            <option value="date-desc">Nieuwste eerst</option>
+            <option value="date-asc">Oudste eerst</option>
+            <option value="name-asc">Naam (A–Z)</option>
+            <option value="name-desc">Naam (Z–A)</option>
+            <option value="brand-asc">Merk (A–Z)</option>
+          </select>
+        </div>
+
+        <div class="row g8">
+          <button id="btn-add" class="btn-primary">+ Toevoegen</button>
+          <button id="btn-import" class="btn-ghost">Importeren</button>
+          <button id="btn-export" class="btn-ghost">Exporteren</button>
+          <input id="file-import" type="file" accept="application/json" hidden />
+        </div>
+      </div>
+
+      <div id="empty" class="hint mt8">
+        Nog niets in je library. Voeg een fixture toe met <strong>+ Toevoegen</strong> of importeer een JSON-export.
+      </div>
+
+      <!-- Grid met kaarten -->
+      <div id="grid" class="grid mt12"></div>
+    </div>
+  </main>
+
+  <!-- Dialoog: Fixture toevoegen/bewerken -->
+  <dialog id="dlg-edit" class="dialog">
+    <form id="frm-edit" method="dialog" class="card">
+      <h3 id="dlg-title">Fixture toevoegen</h3>
+
+      <div class="row g12 wrap">
+        <div class="field grow min-220">
+          <label for="f-man">Merk *</label>
+          <input id="f-man" type="text" required />
+        </div>
+        <div class="field grow min-220">
+          <label for="f-name">Naam *</label>
+          <input id="f-name" type="text" required />
+        </div>
+      </div>
+
+      <div class="row g12 wrap">
+        <div class="field grow min-220">
+          <label for="f-mode">Mode</label>
+          <input id="f-mode" type="text" placeholder="bv. 21ch, Standard" />
+        </div>
+        <div class="field w-170">
+          <label for="f-footprint">DMX footprint</label>
+          <input id="f-footprint" type="number" min="1" max="512" inputmode="numeric" />
+        </div>
       </div>
 
       <div class="field">
-        <label for="filter">Bron</label>
-        <select id="filter">
-          <option value="all">Alles</option>
-          <option value="local">Eigen</option>
-          <option value="gdtf">GDTF</option>
-        </select>
+        <label for="f-notes">Notities</label>
+        <textarea id="f-notes" rows="3" placeholder="Opmerkingen (optioneel)"></textarea>
       </div>
 
-      <div class="field">
-        <label for="sort">Sorteren</label>
-        <select id="sort">
-          <option value="date-desc">Nieuwste eerst</option>
-          <option value="date-asc">Oudste eerst</option>
-          <option value="name-asc">Naam (A–Z)</option>
-          <option value="name-desc">Naam (Z–A)</option>
-          <option value="brand-asc">Merk (A–Z)</option>
-        </select>
+      <div class="row end g8 mt8">
+        <button type="button" class="btn-ghost" id="btn-cancel">Annuleren</button>
+        <button type="submit" class="btn-primary">Opslaan</button>
       </div>
+    </form>
+  </dialog>
 
-      <div class="row g8">
-        <button id="btn-add" class="btn-primary">+ Toevoegen</button>
-        <button id="btn-import" class="btn-ghost">Importeren</button>
-        <button id="btn-export" class="btn-ghost">Exporteren</button>
-        <input id="file-import" type="file" accept="application/json" hidden />
-      </div>
-    </div>
-
-    <div id="empty" class="hint mt8">
-      Nog niets in je library. Voeg een fixture toe met <strong>+ Toevoegen</strong> of importeer een JSON-export.
-    </div>
-
-    <!-- Grid met kaarten -->
-    <div id="grid" class="grid mt12"></div>
-  </div>
-</main>
-
-<!-- Dialoog: Fixture toevoegen/bewerken -->
-<dialog id="dlg-edit" class="dialog">
-  <form id="frm-edit" method="dialog" class="card">
-    <h3 id="dlg-title">Fixture toevoegen</h3>
-
-    <div class="row g12 wrap">
-      <div class="field grow min-220">
-        <label for="f-man">Merk *</label>
-        <input id="f-man" type="text" required />
-      </div>
-      <div class="field grow min-220">
-        <label for="f-name">Naam *</label>
-        <input id="f-name" type="text" required />
-      </div>
-    </div>
-
-    <div class="row g12 wrap">
-      <div class="field grow min-220">
-        <label for="f-mode">Mode</label>
-        <input id="f-mode" type="text" placeholder="bv. 21ch, Standard" />
-      </div>
-      <div class="field w-170">
-        <label for="f-footprint">DMX footprint</label>
-        <input id="f-footprint" type="number" min="1" max="512" inputmode="numeric" />
-      </div>
-    </div>
-
-    <div class="field">
-      <label for="f-notes">Notities</label>
-      <textarea id="f-notes" rows="3" placeholder="Opmerkingen (optioneel)"></textarea>
-    </div>
-
-    <div class="row end g8 mt8">
-      <button type="button" class="btn-ghost" id="btn-cancel">Annuleren</button>
-      <button type="submit" class="btn-primary">Opslaan</button>
-    </div>
-  </form>
-</dialog>
-
-<!-- Scripts (menu + pagina-logica) -->
-<script type="module" src="/js/nav.js"></script>
-<script type="module" src="/js/mylibrary.pages.js"></script>
+  <!-- Scripts (menu + pagina-logica) -->
+  <script type="module" src="/js/nav.js"></script>
+  <!-- Gebruik de juiste bestandsnaam die in je repo staat -->
+  <script type="module" src="/js/mylibrary.page.js"></script>
+</body>
+</html>
