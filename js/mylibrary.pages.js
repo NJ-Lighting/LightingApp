@@ -1,4 +1,4 @@
-// js/mylibrary.page.js
+// js/mylibrary.pages.js
 // Puur localStorage gebaseerde library + simpele UI.
 // Exporteert ook window.MyLibrary voor toekomstige integratie vanuit andere pagina's.
 
