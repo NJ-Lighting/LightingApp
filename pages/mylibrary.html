@@ -21,10 +21,10 @@
       <h2>Mijn Fixture Library</h2>
 
       <!-- Toolbar -->
-      <div class="row g8 wrap items-end">
+      <div id="lib-toolbar" class="row g8 wrap items-end">
         <div class="field grow min-240">
-          <label for="q">Zoeken</label>
-          <input id="q" type="search" inputmode="search" placeholder="Zoek op merk, naam, mode, notities…" />
+          <label for="lib-search">Zoeken</label>
+          <input id="lib-search" type="search" inputmode="search" placeholder="Zoek op merk, naam, mode, notities…" />
         </div>
 
         <div class="field">
@@ -55,12 +55,12 @@
         </div>
       </div>
 
-      <div id="empty" class="hint mt8">
+      <div id="lib-empty" class="hint mt8">
         Nog niets in je library. Voeg een fixture toe met <strong>+ Toevoegen</strong> of importeer een JSON-export.
       </div>
 
       <!-- Grid met kaarten -->
-      <div id="grid" class="grid mt12"></div>
+      <div id="lib-list" class="grid mt12"></div>
     </div>
   </main>
 
@@ -105,6 +105,6 @@
 
   <!-- Scripts (menu + pagina-logica) -->
   <script type="module" src="/js/nav.js"></script>
-  <script type="module" src="/js/mylibrary.pages.js"></script>
+  <script type="module" src="/js/mylibrary.page.js"></script>
 </body>
 </html>
