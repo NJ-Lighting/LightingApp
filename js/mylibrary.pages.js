@@ -1,341 +1,341 @@
-// js/mylibrary.pages.js
-// Puur localStorage gebaseerde library + simpele UI.
-// Exporteert ook window.MyLibrary voor toekomstige integratie vanuit andere pagina's.
+// js/mylibrary.page.js
+// Sprint 1 fine-tunes: fuzzy search, aliases/keywords match, dedupe via stableId,
+// bulk actions (select/export/delete), empty-state tips, persistent sort.
+// Huisstijl & bestaande IDs blijven behouden.
+//
+// Imports zoals in jouw repo:
+import { $, $$, toast, escapeHTML, dlBlob } from './core.js';
+import state from './state.js';
 
-const LS_KEY = 'lightingapp.mylibrary.v1';
+let fixtures = [];            // In-memory library
+let selectedIds = new Set();  // Bulk selection memory
 
-function uid() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+/* ---------- Constants & keys ---------- */
+const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+const LS_KEY_SORT = 'lightingapp.mylib.sort';
+const LS_KEY_LIB  = 'lightingapp.mylib.items'; // fallback storage key
+
+/* ---------- Utils ---------- */
+const normalizeStr = (s) => String(s ?? '')
+  .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  .toLowerCase();
+
+function djb2hash(str){
+  let h = 5381;
+  for (let i=0; i<str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
+  return (h >>> 0).toString(36);
 }
 
-function loadAll() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
+function stableId(x){
+  const s = [
+    x.source || '', x.id || '',
+    x.brand || '', x.model || '',
+    x.mode || '', String(x.channels ?? '')
+  ].map(normalizeStr).join('|');
+  return 'fx_' + djb2hash(s);
 }
 
-function saveAll(items) {
-  localStorage.setItem(LS_KEY, JSON.stringify(items));
-}
+function tokens(str){ return normalizeStr(str).split(/\s+/).filter(Boolean); }
 
-function add(item) {
-  const now = new Date().toISOString();
-  const entry = {
-    id: uid(),
-    source: item?.source === 'gdtf' ? 'gdtf' : 'local',
-    manufacturer: (item?.manufacturer || '').trim(),
-    name: (item?.name || '').trim(),
-    mode: item?.mode || '',
-    footprint: item?.footprint ? Number(item.footprint) : undefined,
-    notes: item?.notes || '',
-    // Optioneel veld om later GDTF metadata te bewaren
-    gdtf: item?.gdtf || null,
-    createdAt: now,
-    updatedAt: now,
-  };
-  const items = loadAll();
-  items.push(entry);
-  saveAll(items);
-  return entry;
-}
-
-function update(id, patch) {
-  const items = loadAll();
-  const idx = items.findIndex(x => x.id === id);
-  if (idx === -1) return null;
-  items[idx] = {
-    ...items[idx],
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  };
-  saveAll(items);
-  return items[idx];
-}
-
-function remove(id) {
-  const items = loadAll();
-  const next = items.filter(x => x.id !== id);
-  saveAll(next);
-}
-
-function clearAll() {
-  saveAll([]);
-}
-
-function exportJson() {
-  const data = loadAll();
-  return JSON.stringify({ version: 1, fixtures: data }, null, 2);
-}
-
-function importJson(obj, { merge = true } = {}) {
-  const next = merge ? loadAll() : [];
-  if (Array.isArray(obj?.fixtures)) {
-    for (const f of obj.fixtures) {
-      // Bij import altijd nieuw ID, zodat je geen clashes krijgt
-      next.push({
-        id: uid(),
-        source: f?.source === 'gdtf' ? 'gdtf' : 'local',
-        manufacturer: (f?.manufacturer || '').trim(),
-        name: (f?.name || '').trim(),
-        mode: f?.mode || '',
-        footprint: f?.footprint ? Number(f.footprint) : undefined,
-        notes: f?.notes || '',
-        gdtf: f?.gdtf || null,
-        createdAt: f?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+// Kleine Levenshtein met cutoff (alleen nuttig voor korte queries)
+function editDistance1or2(a, b){
+  if (!a || !b) return Math.max(a?.length||0, b?.length||0);
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > 2) return 3; // out of scope
+  // DP met vroege stop bij >2
+  const m = a.length, n = b.length;
+  const dp = Array(n+1).fill(0);
+  for (let j=0; j<=n; j++) dp[j] = j;
+  for (let i=1; i<=m; i++){
+    let prev = dp[0];
+    dp[0] = i;
+    let minRow = dp[0];
+    for (let j=1; j<=n; j++){
+      const temp = dp[j];
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      dp[j] = Math.min(
+        dp[j] + 1,      // deletion
+        dp[j-1] + 1,    // insertion
+        prev + cost     // substitution
+      );
+      prev = temp;
+      if (dp[j] < minRow) minRow = dp[j];
     }
-    saveAll(next);
-    return next.length;
+    if (minRow > 2) return 3; // cutoff
   }
-  return 0;
+  return dp[n];
 }
 
-// ------- UI binding -------
+function matchesQuery(item, qRaw){
+  if (!qRaw) return true;
+  const hayParts = [
+    item.brand, item.model, item.mode,
+    ...(item.aliases || []),
+    ...(item.keywords || [])
+  ].map(v => normalizeStr(v||''));
+  const hay = hayParts.join(' ');
+  const q   = normalizeStr(qRaw);
 
-const $ = sel => document.querySelector(sel);
+  // snelle includes
+  if (hay.includes(q)) return true;
 
-const grid = $('#grid');
-const emptyEl = $('#empty');
-const q = $('#q');
-const filter = $('#filter');
-const sortSel = $('#sort');
-const btnAdd = $('#btn-add');
-const btnExport = $('#btn-export');
-const btnImport = $('#btn-import');
-const fileImport = $('#file-import');
+  // token startsWith voor natuurlijke filtering
+  const qs = tokens(q);
+  const hs = hayParts.flatMap(v => tokens(v));
+  if (qs.every(t => hs.some(h => h.startsWith(t)))) return true;
 
-const dlg = $('#dlg-edit');
-const frm = $('#frm-edit');
-const dlgTitle = $('#dlg-title');
-const fMan = $('#f-man');
-const fName = $('#f-name');
-const fMode = $('#f-mode');
-const fFoot = $('#f-footprint');
-const fNotes = $('#f-notes');
-const btnCancel = $('#btn-cancel');
+  // lichte fuzzy op korte queries
+  if (q.length <= 5 && hs.some(h => editDistance1or2(h, q) <= 1)) return true;
 
-let editId = null;
+  return false;
+}
 
-function render() {
-  const txt = (q.value || '').toLowerCase().trim();
-  const src = filter.value; // all | local | gdtf
-  const sort = sortSel.value;
+/* ---------- Storage helpers (state.js fallback naar localStorage) ---------- */
+function storageHas(){ try { return !!(state && state.has && state.has('mylib')); } catch { return false; } }
+function storageGet(){
+  try {
+    if (state && state.get) {
+      const x = state.get('mylib');
+      if (Array.isArray(x)) return x;
+    }
+  } catch {}
+  try {
+    const raw = localStorage.getItem(LS_KEY_LIB);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+function storageSet(arr){
+  try {
+    if (state && state.set) {
+      state.set('mylib', arr);
+      return;
+    }
+  } catch {}
+  try {
+    localStorage.setItem(LS_KEY_LIB, JSON.stringify(arr));
+  } catch {}
+}
 
-  let items = loadAll();
+function saveLibrary(){
+  storageSet(fixtures);
+}
+function loadLibrary(){
+  fixtures = storageGet().map(f => ({...f, _stableId: f._stableId || stableId(f)}));
+}
 
-  // filter bron
-  if (src !== 'all') {
-    items = items.filter(x => x.source === src);
-  }
+/* ---------- Sorting ---------- */
+function sortByBrandModel(a, b){
+  return collator.compare(`${a.brand||''} ${a.model||''}`, `${b.brand||''} ${b.model||''}`);
+}
+function sortByRecent(a, b){
+  // newest first; val 'addedAt' optioneel
+  return (b.addedAt||0) - (a.addedAt||0);
+}
 
-  // zoeken
-  if (txt) {
-    items = items.filter(x => {
-      const hay = [
-        x.manufacturer || '',
-        x.name || '',
-        x.mode || '',
-        x.notes || '',
-      ].join(' ').toLowerCase();
-      return hay.includes(txt);
+/* ---------- Bulk toolbar ---------- */
+function ensureBulkToolbar(){
+  let bar = $('#lib-actions');
+  if (!bar){
+    const host = $('#lib-toolbar') || $('#lib-list')?.parentElement || $('#app');
+    if (!host) return;
+    bar = document.createElement('div');
+    bar.id = 'lib-actions';
+    bar.className = 'row g8';
+    bar.style.margin = '8px 0 12px';
+    bar.innerHTML = `
+      <button id="lib-sel-all" class="btn">Alles selecteren</button>
+      <button id="lib-sel-clear" class="btn btn-ghost">Selectie wissen</button>
+      <button id="lib-exp-sel" class="btn">Export selectie</button>
+      <button id="lib-del-sel" class="btn btn-warn">Verwijder selectie</button>
+      <button id="lib-del-all" class="btn btn-danger">Alles verwijderen</button>
+      <div class="spacer"></div>
+      <label class="field inline">
+        <span class="muted">Sort</span>
+        <select id="lib-sort" class="input">
+          <option value="brand">Merk/Model</option>
+          <option value="recent">Laatst toegevoegd</option>
+        </select>
+      </label>
+    `;
+    host.prepend(bar);
+
+    $('#lib-sel-all')  ?.addEventListener('click', () => { fixtures.forEach(f => selectedIds.add(f._stableId)); renderLibrary(); });
+    $('#lib-sel-clear')?.addEventListener('click', () => { selectedIds.clear(); renderLibrary(); });
+    $('#lib-exp-sel')  ?.addEventListener('click', handleExportSelected);
+    $('#lib-del-sel')  ?.addEventListener('click', handleDeleteSelected);
+    $('#lib-del-all')  ?.addEventListener('click', handleDeleteAll);
+    $('#lib-sort')     ?.addEventListener('change', (e) => {
+      localStorage.setItem(LS_KEY_SORT, e.target.value);
+      renderLibrary();
     });
-  }
 
-  // sorteren
-  items.sort((a, b) => {
-    if (sort === 'name-asc') return (a.name || '').localeCompare(b.name || '');
-    if (sort === 'name-desc') return (b.name || '').localeCompare(a.name || '');
-    if (sort === 'brand-asc') return (a.manufacturer || '').localeCompare(b.manufacturer || '');
-    if (sort === 'date-asc') return (a.createdAt || '').localeCompare(b.createdAt || '');
-    // default: date-desc
-    return (b.createdAt || '').localeCompare(a.createdAt || '');
-  });
-
-  grid.innerHTML = '';
-  if (!items.length) {
-    emptyEl.style.display = '';
-    return;
-  }
-  emptyEl.style.display = 'none';
-
-  for (const it of items) {
-    grid.appendChild(renderCard(it));
+    // init sort UI
+    const pref = localStorage.getItem(LS_KEY_SORT) || 'brand';
+    const sel = $('#lib-sort');
+    if (sel) sel.value = pref;
   }
 }
 
-function renderCard(it) {
-  const el = document.createElement('article');
-  el.className = 'card';
-  el.style.display = 'flex';
-  el.style.flexDirection = 'column';
-  el.style.gap = '10px';
+/* ---------- Rendering ---------- */
+function renderLibrary(){
+  const list  = $('#lib-list');
+  const empty = $('#lib-empty');
+  const qRaw  = ($('#lib-search')?.value || '').trim();
+  if (!list || !empty) return;
 
-  const badge = it.source === 'gdtf' ? 'GDTF' : 'Eigen';
-  const chipColor = it.source === 'gdtf' ? 'var(--accent)' : 'var(--ok)';
+  ensureBulkToolbar();
 
-  el.innerHTML = `
-    <div class="row" style="justify-content:space-between; align-items:flex-start; gap:8px;">
-      <div>
-        <div class="muted" style="font-size:.85rem">${escapeHtml(it.manufacturer || '-')}</div>
-        <h3 style="margin:.25rem 0 0 0">${escapeHtml(it.name || '(naamloos)')}</h3>
-      </div>
-      <span class="chip" style="background:var(--chip); border:1px solid ${chipColor};">${badge}</span>
-    </div>
+  list.innerHTML = '';
 
-    <div class="row g8" style="flex-wrap:wrap">
-      ${it.mode ? `<span class="chip">Mode: ${escapeHtml(it.mode)}</span>` : ''}
-      ${it.footprint ? `<span class="chip">${Number(it.footprint)} ch</span>` : ''}
-      ${it.gdtf?.rev ? `<span class="chip">Rev ${escapeHtml(String(it.gdtf.rev))}</span>` : ''}
-    </div>
+  const sortPref = (localStorage.getItem(LS_KEY_SORT) || 'brand');
+  const rows = fixtures
+    .slice()
+    .sort(sortPref === 'recent' ? sortByRecent : sortByBrandModel)
+    .filter(x => matchesQuery(x, qRaw));
 
-    ${it.notes ? `<div class="muted" style="white-space:pre-wrap">${escapeHtml(it.notes)}</div>` : ''}
-
-    <div class="row" style="justify-content:flex-end; gap:8px; margin-top:4px;">
-      <button class="btn btn-ghost" data-action="use" data-id="${it.id}" title="Gebruik in bulk addressing">Gebruik</button>
-      <button class="btn btn-ghost" data-action="edit" data-id="${it.id}">Bewerken</button>
-      <button class="btn" data-action="dup" data-id="${it.id}" title="Dupliceren">Dupliceren</button>
-      <button class="btn" data-action="del" data-id="${it.id}" title="Verwijderen" style="background:var(--err)">Verwijder</button>
-    </div>
-  `;
-
-  el.addEventListener('click', (ev) => {
-    const btn = ev.target.closest('button[data-action]');
-    if (!btn) return;
-    const id = btn.getAttribute('data-id');
-    const action = btn.getAttribute('data-action');
-
-    if (action === 'del') {
-      if (confirm('Verwijderen?')) {
-        remove(id);
-        render();
-      }
-    } else if (action === 'edit') {
-      startEdit(id);
-    } else if (action === 'dup') {
-      const items = loadAll();
-      const src = items.find(x => x.id === id);
-      if (src) {
-        add({ ...src, source: 'local', notes: src.notes || '' });
-        render();
-      }
-    } else if (action === 'use') {
-      // Schrijf "gekozen fixture" naar localStorage zodat bulk addressing of andere pagina's hem kunnen ophalen.
-      localStorage.setItem('lightingapp.mylibrary.lastSelected', JSON.stringify({ id, at: Date.now() }));
-      // Navigeer optioneel naar bulk addressing als je wilt:
-      // location.href = '/pages/addressing.html'; // desgewenst uitcommentariëren
-      alert('Fixture geselecteerd. Open de Bulk Addressing pagina om verder te gaan.');
-    }
-  });
-
-  return el;
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"'`=\/]/g, s => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','/':'&#x2F;','`':'&#x60;','=':'&#x3D;'
-  }[s]));
-}
-
-// ---- Edit dialog ----
-function startAdd() {
-  editId = null;
-  dlgTitle.textContent = 'Fixture toevoegen';
-  frm.reset();
-  dlg.showModal();
-  fMan.focus();
-}
-
-function startEdit(id) {
-  const items = loadAll();
-  const it = items.find(x => x.id === id);
-  if (!it) return;
-  editId = id;
-  dlgTitle.textContent = 'Fixture bewerken';
-  fMan.value = it.manufacturer || '';
-  fName.value = it.name || '';
-  fMode.value = it.mode || '';
-  fFoot.value = it.footprint || '';
-  fNotes.value = it.notes || '';
-  dlg.showModal();
-  fName.focus();
-}
-
-frm.addEventListener('submit', (ev) => {
-  ev.preventDefault();
-  const payload = {
-    source: 'local',
-    manufacturer: fMan.value,
-    name: fName.value,
-    mode: fMode.value,
-    footprint: fFoot.value ? Number(fFoot.value) : undefined,
-    notes: fNotes.value,
-  };
-  if (editId) {
-    update(editId, payload);
+  if (rows.length === 0){
+    empty.style.display = '';
+    empty.innerHTML = `
+      <div class="muted" style="margin:8px 0">Geen resultaten voor “${escapeHTML(qRaw)}”.</div>
+      <ul class="muted" style="margin:0 0 6px 16px; line-height:1.5">
+        <li>Zoek op merk (bijv. “Robe”, “Ayrton”)</li>
+        <li>Probeer model of mode (bijv. “BMFL”, “Diablo”, “Mode 1”)</li>
+        <li>Kleine typfouten worden opgevangen 😉</li>
+      </ul>`;
   } else {
-    add(payload);
+    empty.style.display = 'none';
   }
-  dlg.close();
-  render();
-});
 
-btnCancel.addEventListener('click', () => dlg.close());
+  for (const fx of rows){
+    const li = document.createElement('div');
+    li.className = 'row card-row';
+    li.style.alignItems = 'center';
+    li.style.justifyContent = 'space-between';
+    li.style.padding = '8px 10px';
+    li.style.borderBottom = '1px solid var(--border)';
 
-// ---- Toolbar events ----
-q.addEventListener('input', render);
-filter.addEventListener('change', render);
-sortSel.addEventListener('change', render);
+    const isSel = selectedIds.has(fx._stableId);
 
-btnAdd.addEventListener('click', startAdd);
-
-btnExport.addEventListener('click', () => {
-  const blob = new Blob([exportJson()], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'lightingapp-mylibrary.json';
-  document.body.appendChild(a);
-  a.click();
-  URL.revokeObjectURL(a.href);
-  a.remove();
-});
-
-btnImport.addEventListener('click', () => fileImport.click());
-
-fileImport.addEventListener('change', async () => {
-  const file = fileImport.files?.[0];
-  if (!file) return;
-  try {
-    const txt = await file.text();
-    const obj = JSON.parse(txt);
-    const count = importJson(obj, { merge: true });
-    alert(`Geïmporteerd: ${count} fixtures.`);
-    render();
-  } catch (e) {
-    console.error(e);
-    alert('Kon JSON niet lezen. Controleer het bestand.');
-  } finally {
-    fileImport.value = '';
+    li.innerHTML = `
+      <label class="row g8" style="align-items:center; flex:1; min-width:0">
+        <input type="checkbox" class="lib-check" data-id="${fx._stableId}" ${isSel ? 'checked' : ''} />
+        <div class="col" style="min-width:0">
+          <div class="row g8" style="align-items:center">
+            <strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              ${escapeHTML(fx.brand||'–')} ${escapeHTML(fx.model||'')}
+            </strong>
+            ${fx.mode ? `<span class="chip">${escapeHTML(fx.mode)}</span>` : ''}
+          </div>
+          <div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${fx.channels ? `${fx.channels} ch` : ''}${fx.channels && fx.footprint ? ' · ' : ''}${fx.footprint||''}
+          </div>
+        </div>
+      </label>
+      <div class="row g6">
+        <button class="btn btn-ghost lib-del" data-id="${fx._stableId}" title="Verwijderen">🗑️</button>
+      </div>
+    `;
+    list.appendChild(li);
   }
-});
 
-// Eerste render
-render();
+  // events per render
+  $$('.lib-check').forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      if (e.currentTarget.checked) selectedIds.add(id);
+      else selectedIds.delete(id);
+    });
+  });
+  $$('.lib-del').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const idx = fixtures.findIndex(f => f._stableId === id);
+      if (idx >= 0){
+        fixtures.splice(idx,1);
+        selectedIds.delete(id);
+        saveLibrary();
+        renderLibrary();
+        toast('Fixture verwijderd');
+      }
+    });
+  });
+}
 
-// Exporteer een eenvoudige API voor andere pagina's
-window.MyLibrary = {
-  add,
-  addFromGdtf(meta) {
-    // Call vanuit je GDTF pagina: MyLibrary.addFromGdtf({ manufacturer, name, mode, footprint, gdtf:{ uid, rev, url } })
-    return add({ ...meta, source: 'gdtf' });
-  },
-  list: loadAll,
-  select(id) {
-    localStorage.setItem('lightingapp.mylibrary.lastSelected', JSON.stringify({ id, at: Date.now() }));
-  },
-  clearAll,
-};
+/* ---------- Bulk actions ---------- */
+function handleExportSelected(){
+  const arr = fixtures.filter(f => selectedIds.has(f._stableId))
+    .map(({_stableId, ...rest}) => rest);
+  if (!arr.length){ toast('Geen selectie om te exporteren'); return; }
+  const blob = new Blob([JSON.stringify(arr, null, 2)], {type:'application/json'});
+  dlBlob(blob, `my-library-selection-${Date.now()}.json`);
+}
+
+function handleDeleteSelected(){
+  if (!selectedIds.size){ toast('Geen selectie om te verwijderen'); return; }
+  if (!confirm('Weet je zeker dat je de geselecteerde fixtures wilt verwijderen?')) return;
+  fixtures = fixtures.filter(f => !selectedIds.has(f._stableId));
+  selectedIds.clear();
+  saveLibrary();
+  renderLibrary();
+  toast('Selectie verwijderd');
+}
+
+function handleDeleteAll(){
+  if (!fixtures.length){ toast('Bibliotheek is al leeg'); return; }
+  if (!confirm('Weet je zeker dat je ALLES wilt verwijderen?')) return;
+  fixtures = [];
+  selectedIds.clear();
+  saveLibrary();
+  renderLibrary();
+  toast('Bibliotheek geleegd');
+}
+
+/* ---------- Public API ---------- */
+// Voeg fixtures toe met dedupe. newOnes: array van objecten.
+export function addFixtures(newOnes){
+  if (!Array.isArray(newOnes) || !newOnes.length) return;
+  let added = 0;
+  for (const raw of newOnes){
+    const fx = {...raw};
+    fx._stableId = stableId(fx);
+    if (!fixtures.some(f => f._stableId === fx._stableId)){
+      fx.addedAt = fx.addedAt || Date.now();
+      fixtures.push(fx);
+      added++;
+    }
+  }
+  if (added){
+    saveLibrary();
+    renderLibrary();
+    toast(`${added} fixture${added>1?'s':''} toegevoegd`);
+  } else {
+    toast('Geen nieuwe fixtures (dubbele genegeerd)');
+  }
+}
+
+// Optioneel: import JSON dump (bv. vanuit export)
+export function importFixtures(json){
+  try{
+    const arr = typeof json === 'string' ? JSON.parse(json) : json;
+    if (!Array.isArray(arr)) throw new Error('Invalid JSON');
+    addFixtures(arr);
+  } catch(e){
+    toast('Kon JSON niet importeren');
+  }
+}
+
+/* ---------- Init ---------- */
+function init(){
+  loadLibrary();
+  $('#lib-search')?.addEventListener('input', () => renderLibrary());
+  ensureBulkToolbar();
+  renderLibrary();
+}
+
+// Auto-init als de pagina geladen is
+if (document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
