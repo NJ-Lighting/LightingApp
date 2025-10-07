@@ -1,20 +1,22 @@
 import { $, $$, clamp, UNIVERSE_SIZE, toast, dlBlob, copyText, escapeHTML } from './core.js';
 import state from './state.js';
 
+/* ---------- Nieuw: key voor selectie-overname uit My Library ---------- */
+const LS_KEY_ADDRSEL = 'lightingapp.addressing.selection';
+
 /* ---------- Helpers ---------- */
 function universeColor(u){
   const hue = (u * 47) % 360, sat = 68, light = 28;
   return {
-    bg: `hsla(${hue} ${sat}% ${light}% / 0.22)`,
+    bg:     `hsla(${hue} ${sat}% ${light}% / 0.22)`,
     border: `hsl(${hue} ${sat}% ${light}%)`,
-    dot: `hsl(${hue} ${sat}% ${Math.min(light+10,60)}%)`,
+    dot:    `hsl(${hue} ${sat}% ${Math.min(light+10,60)}%)`,
   };
 }
 
 /** Simple typeahead with A11y roles */
 function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placeholder}){
   if(!input || !listEl) return { refresh: ()=>{}, close: ()=>{} };
-
   let items = [];
   let open = false;
   let activeIndex = -1;
@@ -28,7 +30,6 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
   input.setAttribute('aria-controls', listboxId);
   input.setAttribute('aria-autocomplete', 'list');
   listEl.setAttribute('role','listbox');
-
   if(placeholder) input.placeholder = placeholder;
 
   function close(){
@@ -39,14 +40,12 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
     input.removeAttribute('aria-activedescendant');
     activeIndex = -1;
   }
-
   function openList(){
     if(open) return;
     open = true;
     listEl.style.display = 'block';
     input.setAttribute('aria-expanded','true');
   }
-
   function render(){
     listEl.innerHTML = '';
     if(items.length === 0){
@@ -65,24 +64,19 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
       div.className = 'ta-item';
       div.setAttribute('role','option');
       div.dataset.index = i;
-
-      div.innerHTML = renderItem ? renderItem(it)
-        : `<span>${escapeHTML(String(it))}</span>`;
-
+      div.innerHTML = renderItem ? renderItem(it) : `${escapeHTML(String(it))}`;
       if(i === activeIndex) {
         div.setAttribute('aria-selected','true');
         input.setAttribute('aria-activedescendant', id);
       } else {
         div.setAttribute('aria-selected','false');
       }
-
       div.addEventListener('mouseenter', ()=> { activeIndex = i; updateActive(); });
       div.addEventListener('mousedown', (e)=> e.preventDefault()); // geen blur op click
       div.addEventListener('click', ()=> choose(i));
       listEl.appendChild(div);
     });
   }
-
   function updateActive(){
     $$('.ta-item', listEl).forEach((n,ix)=>{
       const sel = ix===activeIndex ? 'true' : 'false';
@@ -94,24 +88,19 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
       const r = el.getBoundingClientRect();
       const p = listEl.getBoundingClientRect();
       if(r.bottom > p.bottom) listEl.scrollTop += (r.bottom - p.bottom);
-      if(r.top < p.top) listEl.scrollTop -= (p.top - r.top);
+      if(r.top < p.top)       listEl.scrollTop  -= (p.top - r.top);
     } else {
       input.removeAttribute('aria-activedescendant');
     }
   }
-
   function choose(i){
     const val = items[i];
     if(!val) return;
     onChoose?.(val, input, close);
   }
-
-  function toStr(it){
-    return typeof it==='string' ? it : (it.label || it.value || '');
-  }
-
+  function toStr(it){ return typeof it==='string' ? it : (it.label || it.value || ''); }
   function doFilter(){
-    const q = input.value.trim().toLowerCase();
+    const q   = input.value.trim().toLowerCase();
     const src = (getItems?.() || []);
     // starts-with eerst, daarna includes
     const starts = src.filter(s=> toStr(s).toLowerCase().startsWith(q));
@@ -143,7 +132,6 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
   };
   document.addEventListener('click', onDocClick, { capture:true });
 
-  // cleanup mocht ooit nodig: return object heeft alleen close/refresh (past bij jouw gebruik)
   return { refresh: doFilter, close };
 }
 
@@ -154,8 +142,8 @@ function makeTypeahead({input, listEl, getItems, onChoose, renderItem, placehold
  * - universe: >=1
  * - footprint: >=1, <=512
  * - quantity: >=1
- * - gap: >=0 (kan overflow veroorzaken → we rollen door)
- * - resetMode: 'reset' | 'roll' (bij overflow: reset = adres weer 1, roll = doorgaan modulo 512)
+ * - gap: >=0
+ * - resetMode: 'reset' | 'roll'
  */
 function calcAddressing({start, universe, footprint, quantity, gap, resetMode, nameTemplate}){
   if(footprint > UNIVERSE_SIZE){
@@ -164,7 +152,6 @@ function calcAddressing({start, universe, footprint, quantity, gap, resetMode, n
   const rows = [];
   let curA = clamp(start, 1, UNIVERSE_SIZE);
   let curU = Math.max(1, universe);
-
   for(let i=1; i<=quantity; i++){
     // Past het niet in huidige universe? -> universum opschuiven en adres bepalen
     if(curA + footprint - 1 > UNIVERSE_SIZE){
@@ -174,23 +161,20 @@ function calcAddressing({start, universe, footprint, quantity, gap, resetMode, n
       } else {
         // rollende adressering (mod 512), blijf netjes binnen 1..512
         curA = ((curA - 1 + footprint) % UNIVERSE_SIZE) + 1;
-        // Het kan theoretisch nog steeds uitkomen dat footprint niet past (bv. footprint=512 en curA!=1) -> forceer 1
+        // randgeval
         if(curA + footprint - 1 > UNIVERSE_SIZE) curA = 1;
       }
     }
-
-    const end = curA + footprint - 1;
+    const end  = curA + footprint - 1;
     const name = typeof nameTemplate==='function' ? nameTemplate(i) : `Fixture ${i}`;
-
     rows.push({ index: 0, name, universe: curU, address: curA, footprint, end, notes: '' });
 
-    // Volgende startpositie met gap (kan overflow veroorzaken → volgende iteratie fixt dit blok bovenaan)
+    // Volgende startpositie met gap
     curA = end + 1 + gap;
     if(curA > UNIVERSE_SIZE){
       curU += Math.floor((curA - 1) / UNIVERSE_SIZE);
       if(resetMode === 'reset'){
-        curA = ((curA - 1) % UNIVERSE_SIZE) + 1; // begin voor volgende universe bij 1
-        // Als we exact op grens boven 512 zaten, start je op 1 in volgende universe
+        curA = ((curA - 1) % UNIVERSE_SIZE) + 1;
         if(curA !== 1) curA = 1;
       } else {
         curA = ((curA - 1) % UNIVERSE_SIZE) + 1;
@@ -204,11 +188,12 @@ function calcAddressing({start, universe, footprint, quantity, gap, resetMode, n
 /* ---------- Main ---------- */
 export function initAddressing(){
   const els = {
-    fxInput: $('#addr-fixture-input'),
-    fxList:  $('#addr-fixture-list'),
-    fxQty:   $('#addr-fixture-qty'),
-    fxAdd:   $('#addr-fixture-add'),
-    planWrap:$('#addr-plan-wrap'),
+    fxInput:  $('#addr-fixture-input'),
+    fxList:   $('#addr-fixture-list'),
+    fxQty:    $('#addr-fixture-qty'),
+    fxAdd:    $('#addr-fixture-add'),
+
+    planWrap: $('#addr-plan-wrap'),
     planTable:$('#addr-plan-table tbody'),
     planClear:$('#addr-plan-clear'),
 
@@ -232,10 +217,11 @@ export function initAddressing(){
 
   // --- library dataset for typeahead
   const fixturesLib = () => {
-    try { return state.getLibrary() || []; } catch { return []; }
+    try { return state.getLibrary() || []; }
+    catch { return []; }
   };
 
-  // selection buffer (what’s in the typeahead input right now)
+  // selection buffer (wat in het typeahead-invoer staat)
   let selectedBuf = null; // {brand, model, mode, footprint}
 
   function planFromState(){
@@ -248,18 +234,59 @@ export function initAddressing(){
     state.setAddr(st);
   }
 
+  // My Library → Addressing selectie inlezen/clearen/mergen
+  function readAddrSelection(){
+    let sel = null;
+    try { sel = state.get?.('addressing.selection'); } catch {}
+    if (!Array.isArray(sel)) {
+      try {
+        const raw = localStorage.getItem(LS_KEY_ADDRSEL);
+        if (raw) sel = JSON.parse(raw);
+      } catch {}
+    }
+    return Array.isArray(sel) ? sel : [];
+  }
+  function clearAddrSelection(){
+    try { state.set?.('addressing.selection', null); } catch {}
+    try { localStorage.removeItem(LS_KEY_ADDRSEL); } catch {}
+  }
+  function mergeSelectionIntoPlan(items){
+    if (!items.length) return false;
+    const plan = planFromState();
+    let changed = false;
+    for (const it of items){
+      const brand = it.brand || '';
+      const model = it.model || '';
+      const mode  = it.mode  || '';
+      const fp    = Number(it.footprint ?? it.channels) || null;
+      const qty   = Math.max(1, Number(it.qty)||1);
+      const ix = plan.findIndex(p =>
+        p.brand===brand && p.model===model && p.mode===mode &&
+        (p.footprint||null)===(fp||null)
+      );
+      if (ix >= 0) {
+        plan[ix].quantity = Math.max(1, (Number(plan[ix].quantity)||1) + qty);
+      } else {
+        plan.push({ brand, model, mode, footprint: fp, quantity: qty });
+      }
+      changed = true;
+    }
+    if (changed) savePlan(plan);
+    return changed;
+  }
+
   // Build typeahead items
   const getItems = ()=> fixturesLib()
     .slice()
     .sort((a,b)=> (a.brand+a.model+a.mode).localeCompare(b.brand+b.model+b.mode))
     .map(x=>{
-      const labelLeft = `${(x.brand||'').trim()} ${(x.model||'').trim()}`.trim();
+      const labelLeft  = `${(x.brand||'').trim()} ${(x.model||'').trim()}`.trim();
       const labelRight = `${x.mode||'–'} • ${x.footprint??'?'}ch`;
       return {
         value: `${x.brand||''} ${x.model||''}`.trim(),
-        meta: { mode: x.mode||'', footprint: x.footprint||null, brand:x.brand||'', model:x.model||'' },
+        meta:  { mode: x.mode||'', footprint: x.footprint||null, brand:x.brand||'', model:x.model||'' },
         label: `${labelLeft} — ${labelRight}`,
-        raw: x
+        raw:   x
       };
     });
 
@@ -270,7 +297,7 @@ export function initAddressing(){
     renderItem: (it)=> {
       const left  = escapeHTML(it.value);
       const right = escapeHTML(`${it.meta.mode||'–'} • ${it.meta.footprint??'?'}ch`);
-      return `<span>${left}</span><span class="ta-tag">${right}</span>`;
+      return `${left}${right}`;
     },
     onChoose: (it, input, close)=>{
       selectedBuf = {
@@ -295,23 +322,21 @@ export function initAddressing(){
       const qtyVal = Math.max(1, Number(p.quantity)||1);
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${idx+1}</td>
-        <td>${escapeHTML(`${p.brand||''} ${p.model||''}`.trim())}</td>
-        <td>${escapeHTML(p.mode||'–')}</td>
-        <td>${p.footprint??'?'} ch</td>
-        <td>
-          <div class="row" style="gap:6px; align-items:center">
-            <button class="btn-ghost" data-act="dec" data-i="${idx}" type="button" aria-label="Verlaag aantal">–</button>
-            <input data-i="${idx}" data-role="qty" value="${qtyVal}" type="number" min="1" style="width:64px" aria-label="Aantal voor rij ${idx+1}" />
-            <button class="btn-ghost" data-act="inc" data-i="${idx}" type="button" aria-label="Verhoog aantal">+</button>
-          </div>
+        <td class="idx">${idx+1}</td>
+        <td class="plan-name">${escapeHTML(`${p.brand||''} ${p.model||''}`.trim())}</td>
+        <td class="plan-mode">${escapeHTML(p.mode||'–')}</td>
+        <td class="plan-foot">${p.footprint??'?'} ch</td>
+        <td class="plan-qty">
+          <button data-i="${idx}" data-act="dec" class="btn btn-ghost" aria-label="Minder">–</button>
+          <input data-role="qty" data-i="${idx}" class="input qty" type="number" min="1" value="${qtyVal}" />
+          <button data-i="${idx}" data-act="inc" class="btn btn-ghost" aria-label="Meer">+</button>
         </td>
-        <td>
-          <div class="row" style="gap:6px; align-items:center">
-            <button class="btn-ghost" data-act="up" data-i="${idx}"   type="button" aria-label="Omhoog">↑</button>
-            <button class="btn-ghost" data-act="down" data-i="${idx}" type="button" aria-label="Omlaag">↓</button>
-            <button data-act="del" data-i="${idx}" type="button" aria-label="Verwijder">Remove</button>
-          </div>
+        <td class="plan-move">
+          <button data-i="${idx}" data-act="up"   class="btn btn-ghost" aria-label="Omhoog">↑</button>
+          <button data-i="${idx}" data-act="down" class="btn btn-ghost" aria-label="Omlaag">↓</button>
+        </td>
+        <td class="plan-del">
+          <button data-i="${idx}" data-act="del" class="btn btn-ghost" aria-label="Verwijderen">Remove</button>
         </td>
       `;
       els.planTable.appendChild(tr);
@@ -319,15 +344,19 @@ export function initAddressing(){
   }
 
   function addToPlan(sel, qty){
-    if(!sel){ toast('Selecteer eerst een fixture uit de Library','warning'); return; }
+    if(!sel){
+      toast('Selecteer eerst een fixture uit de Library','warning');
+      return;
+    }
     const q = Math.max(1, Number(qty)||1);
     const plan = planFromState();
     const ix = plan.findIndex(p =>
-      p.brand===sel.brand && p.model===sel.model && p.mode===sel.mode && (p.footprint||null)===(sel.footprint||null)
+      p.brand===sel.brand && p.model===sel.model && p.mode===sel.mode &&
+      (p.footprint||null)===(sel.footprint||null)
     );
     if(ix>=0){
       plan[ix].quantity = Math.max(1, (Number(plan[ix].quantity)||1) + q);
-    }else{
+    } else {
       plan.push({
         brand: sel.brand||'',
         model: sel.model||'',
@@ -347,20 +376,39 @@ export function initAddressing(){
     renderPlan();
   });
 
-  // Plan table interactions
+  // Plan table interactions (click)
   $('#addr-plan-table')?.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button'); if(!btn) return;
+    const btn = e.target.closest('button');
+    if(!btn) return;
     const i = Number(btn.dataset.i);
     const plan = planFromState();
     if(!Number.isInteger(i) || i<0 || i>=plan.length) return;
 
-    if(btn.dataset.act==='del'){ plan.splice(i,1); savePlan(plan); renderPlan(); return; }
-    if(btn.dataset.act==='up' && i>0){ const t=plan[i]; plan[i]=plan[i-1]; plan[i-1]=t; savePlan(plan); renderPlan(); return; }
-    if(btn.dataset.act==='down' && i<plan.length-1){ const t=plan[i]; plan[i]=plan[i+1]; plan[i+1]=t; savePlan(plan); renderPlan(); return; }
-    if(btn.dataset.act==='inc'){ plan[i].quantity = Math.max(1, (Number(plan[i].quantity)||1) + 1); savePlan(plan); renderPlan(); return; }
-    if(btn.dataset.act==='dec'){ plan[i].quantity = Math.max(1, (Number(plan[i].quantity)||1) - 1); savePlan(plan); renderPlan(); return; }
+    if(btn.dataset.act==='del'){
+      plan.splice(i,1);
+      savePlan(plan);
+      renderPlan();
+      return;
+    }
+    if(btn.dataset.act==='up' && i>0){
+      const t=plan[i]; plan[i]=plan[i-1]; plan[i-1]=t;
+      savePlan(plan); renderPlan(); return;
+    }
+    if(btn.dataset.act==='down' && i < plan.length-1){
+      const t=plan[i]; plan[i]=plan[i+1]; plan[i+1]=t;
+      savePlan(plan); renderPlan(); return;
+    }
+    if(btn.dataset.act==='inc'){
+      plan[i].quantity = Math.max(1, (Number(plan[i].quantity)||1) + 1);
+      savePlan(plan); renderPlan(); return;
+    }
+    if(btn.dataset.act==='dec'){
+      plan[i].quantity = Math.max(1, (Number(plan[i].quantity)||1) - 1);
+      savePlan(plan); renderPlan(); return;
+    }
   });
 
+  // Plan qty input change
   $('#addr-plan-table')?.addEventListener('input', (e)=>{
     const inp = e.target;
     if(inp?.dataset?.role==='qty'){
@@ -381,18 +429,17 @@ export function initAddressing(){
       const tr = document.createElement('tr');
       const col = universeColor(r.universe);
       tr.dataset.uni = r.universe;
-      tr.style.setProperty('--uni-bg', col.bg);
+      tr.style.setProperty('--uni-bg',     col.bg);
       tr.style.setProperty('--uni-border', col.border);
-      tr.style.setProperty('--uni-dot', col.dot);
-
+      tr.style.setProperty('--uni-dot',    col.dot);
       tr.innerHTML = `
         <td class="idx">${r.index}</td>
-        <td class="name" contenteditable="plaintext-only" spellcheck="false">${escapeHTML(r.name||'')}</td>
-        <td class="universe uni-cell" contenteditable="plaintext-only"><span class="uni-dot"></span><span>${r.universe}</span></td>
-        <td class="address" contenteditable="plaintext-only">${r.address}</td>
+        <td class="name" contenteditable="true">${escapeHTML(r.name||'')}</td>
+        <td class="universe" contenteditable="true">${r.universe}</td>
+        <td class="address"  contenteditable="true">${r.address}</td>
         <td>${r.footprint}</td>
         <td>${r.end}</td>
-        <td class="notes" contenteditable="plaintext-only">${escapeHTML(r.notes||'')}</td>
+        <td class="notes" contenteditable="true">${escapeHTML(r.notes||'')}</td>
       `;
       // numeric-only for universe/address
       tr.querySelector('.universe')?.addEventListener('input', e=>{
@@ -413,13 +460,13 @@ export function initAddressing(){
         return Number.isFinite(v)?v:def;
       };
       return {
-        index: toInt('.idx',0),
-        name: txt('.name'),
-        universe: toInt('.universe',1),
-        address: toInt('.address',1),
+        index:     toInt('.idx',0),
+        name:      txt('.name'),
+        universe:  toInt('.universe',1),
+        address:   toInt('.address',1),
         footprint: toInt('td:nth-child(5)',1),
-        end: toInt('td:nth-child(6)',1),
-        notes: txt('.notes'),
+        end:       toInt('td:nth-child(6)',1),
+        notes:     txt('.notes'),
       };
     });
   }
@@ -427,46 +474,38 @@ export function initAddressing(){
   /* ---------- Generate logic ---------- */
   function generate(){
     try{
-      const start = +(els.start?.value ?? 1) || 1;
-      const universe = +(els.univ?.value ?? 1) || 1;
-      const resetMode = els.mode?.value || 'reset';
-      const gap = Math.max(0, +(els.gap?.value ?? 0) || 0);
+      const start    = +(els.start?.value ?? 1) || 1;
+      const universe = +(els.univ?.value  ?? 1) || 1;
+      const resetMode=  (els.mode?.value  || 'reset');
+      const gap      = Math.max(0, +(els.gap?.value ?? 0) || 0);
 
       const plan = planFromState();
       let rows = [];
-      let nextStart = start;
+      let nextStart    = start;
       let nextUniverse = universe;
-      let globalIndex = 1;
+      let globalIndex  = 1;
 
       if(plan.length){
         for(const p of plan){
-          const fp = Math.max(1, Number(p.footprint)||1);
+          const fp  = Math.max(1, Number(p.footprint)||1);
           const qty = Math.max(1, Number(p.quantity)||1);
-
           const localNameTemplate = (i)=> {
             const base = `${p.brand||''} ${p.model||''}`.trim();
             const mode = p.mode ? ` (${p.mode})` : '';
             return `${base}${mode} #${globalIndex + i - 1}`;
           };
-
           const part = calcAddressing({
-            start: nextStart,
-            universe: nextUniverse,
-            footprint: fp,
-            quantity: qty,
-            gap,
-            resetMode,
+            start: nextStart, universe: nextUniverse,
+            footprint: fp, quantity: qty, gap, resetMode,
             nameTemplate: localNameTemplate
           });
-
           if(part.length){
             const last = part[part.length-1];
-            nextStart = last.end + 1 + gap;
+            nextStart    = last.end + 1 + gap;
             nextUniverse = last.universe;
             if(nextStart > UNIVERSE_SIZE){
               if(resetMode==='reset'){
-                nextStart = 1;
-                nextUniverse += 1;
+                nextStart = 1; nextUniverse += 1;
               } else {
                 nextStart = ((nextStart - 1) % UNIVERSE_SIZE) + 1;
                 nextUniverse += 1;
@@ -474,13 +513,12 @@ export function initAddressing(){
               }
             }
           }
-
           globalIndex += qty;
           rows = rows.concat(part);
         }
-      }else{
-        const fp = Math.max(1, +(els.foot?.value ?? 1) || 1);
-        const qty = Math.max(1, +(els.qty?.value ?? 1) || 1);
+      } else {
+        const fp  = Math.max(1, +(els.foot?.value ?? 1) || 1);
+        const qty = Math.max(1, +(els.qty?.value  ?? 1) || 1);
         rows = calcAddressing({
           start, universe, footprint: fp, quantity: qty, gap, resetMode,
           nameTemplate: (i)=> `Fixture ${i}`
@@ -496,8 +534,8 @@ export function initAddressing(){
         footprint:+(els.foot?.value ?? 1),
         quantity:+(els.qty?.value ?? 1),
         gap:+(els.gap?.value ?? 0),
-        mode:els.mode?.value ?? 'reset',
-        plan: plan
+        mode: els.mode?.value ?? 'reset',
+        plan
       });
 
     }catch(err){
@@ -510,12 +548,8 @@ export function initAddressing(){
     const head = ['#','Name','Universe','Address','Footprint','End','Notes'];
     const csv = [head.join(',')].concat(
       rows.map(r=>[
-        r.index,
-        `"${String(r.name||'').replace(/"/g,'""')}"`,
-        r.universe,
-        r.address,
-        r.footprint,
-        r.end,
+        r.index, `"${String(r.name||'').replace(/"/g,'""')}"`,
+        r.universe, r.address, r.footprint, r.end,
         `"${String(r.notes||'').replace(/"/g,'""')}"`
       ].join(','))
     ).join('\r\n');
@@ -533,33 +567,41 @@ export function initAddressing(){
   }
 
   // events
-  els.gen?.addEventListener('click', generate);
-  els.exp?.addEventListener('click', exportCSV);
+  els.gen ?.addEventListener('click', generate);
+  els.exp ?.addEventListener('click', exportCSV);
   els.copy?.addEventListener('click', copyTable);
 
   // restore state
   const st = state.getAddr() || {};
-  if(st.start != null && els.start) els.start.value = st.start;
-  if(st.universe != null && els.univ) els.univ.value = st.universe;
-  if(st.footprint != null && els.foot) els.foot.value = st.footprint;
-  if(st.quantity != null && els.qty) els.qty.value = Math.max(1, st.quantity);
-  if(Number.isFinite(st.gap) && els.gap) els.gap.value = Math.max(0, st.gap);
-  if(st.mode && els.mode) els.mode.value = st.mode;
-  renderPlan();
+  if(st.start     != null && els.start) els.start.value = st.start;
+  if(st.universe  != null && els.univ)  els.univ.value  = st.universe;
+  if(st.footprint != null && els.foot)  els.foot.value  = st.footprint;
+  if(st.quantity  != null && els.qty)   els.qty.value   = Math.max(1, st.quantity);
+  if(Number.isFinite(st.gap) && els.gap)els.gap.value   = Math.max(0, st.gap);
+  if(st.mode && els.mode)               els.mode.value  = st.mode;
 
-  // initial render
-  generate();
+  // ---- Nieuw: overname vanuit My Library (indien aanwezig) ----
+  const incoming = readAddrSelection();
+  if (incoming.length){
+    if (mergeSelectionIntoPlan(incoming)) {
+      renderPlan();        // toon direct in plan
+    }
+    clearAddrSelection();  // buffer legen, voorkomt dubbel toevoegen
+  }
+
+  renderPlan();  // initial render
+  generate();    // maak de tabel op basis van inputs/plan
 
   // cross-tab sync
   state.onMessage(msg=>{
     if(msg?.type==='addr:update'){
       const s = msg.payload||{};
-      if(s.start != null && els.start) els.start.value = s.start;
-      if(s.universe != null && els.univ) els.univ.value = s.universe;
-      if(s.footprint != null && els.foot) els.foot.value = s.footprint;
-      if(s.quantity != null && els.qty) els.qty.value = Math.max(1, s.quantity);
-      if(Number.isFinite(s.gap) && els.gap) els.gap.value = Math.max(0, s.gap);
-      if(s.mode && els.mode) els.mode.value = s.mode;
+      if(s.start     != null && els.start) els.start.value = s.start;
+      if(s.universe  != null && els.univ)  els.univ.value  = s.universe;
+      if(s.footprint != null && els.foot)  els.foot.value  = s.footprint;
+      if(s.quantity  != null && els.qty)   els.qty.value   = Math.max(1, s.quantity);
+      if(Number.isFinite(s.gap) && els.gap)els.gap.value   = Math.max(0, s.gap);
+      if(s.mode && els.mode)               els.mode.value  = s.mode;
       renderPlan();
       generate();
     }
@@ -569,8 +611,8 @@ export function initAddressing(){
   window.addEventListener('keydown',(e)=>{
     const tag = document.activeElement?.tagName;
     if (tag && ['INPUT','SELECT','TEXTAREA'].includes(tag)) return;
-    if(e.key==='g' || e.key==='G') els.gen?.click();
-    if(e.key==='e' || e.key==='E') els.exp?.click();
+    if(e.key==='g' || e.key==='G') els.gen ?.click();
+    if(e.key==='e' || e.key==='E') els.exp ?.click();
     if(e.key==='c' || e.key==='C') els.copy?.click();
   });
 }
