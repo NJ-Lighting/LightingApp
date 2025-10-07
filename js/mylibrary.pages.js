@@ -1,6 +1,6 @@
 // js/mylibrary.page.js
-// Sprint 2: Virtualized list, badges, swipe-to-delete with undo, density toggle, debounced search.
-// Blijft in jouw huisstijl; gebruikt bestaande IDs (#lib-search, #lib-list, #lib-empty, #lib-toolbar).
+// Sprint 3: Drag&drop .gdtf/.json import, Sets & Tags, Export All, Multi-select → Bulk Addressing.
+// Blijft in jouw huisstijl; bestaande IDs (#lib-search, #lib-list, #lib-empty, #lib-toolbar) blijven.
 import { $, $$, toast, escapeHTML, dlBlob } from './core.js';
 import state from './state.js';
 
@@ -9,6 +9,7 @@ let selectedIds = new Set();  // Bulk selection memory
 let pendingUndo = null;       // Voor swipe-to-delete undo
 let searchDebounce = null;    // Debounce timer voor search
 let vState = null;            // Virtualization state (of null als uit)
+let sets = {};               // Named sets: { [setName]: string[] stableIds }
 
 /* ---------- Constants & keys ---------- */
 const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
@@ -17,6 +18,8 @@ const LS_KEY_LIB     = 'lightingapp.mylib.items';     // fallback storage key
 const LS_KEY_DENSITY = 'lightingapp.mylib.density';   // 'comfortable' | 'compact'
 const VIRTUAL_THRESHOLD = 200; // >=200 items → virtualized list
 const OVERSCAN = 8;            // extra rijen boven/onder viewport
+const LS_KEY_SETS  = 'lightingapp.mylib.sets';
+const LS_KEY_ADDRSEL = 'lightingapp.addressing.selection'; // handover naar Bulk Addressing
 
 /* ---------- Utils ---------- */
 const normalizeStr = (s) => String(s ?? '')
@@ -73,7 +76,8 @@ function matchesQuery(item, qRaw){
   const hayParts = [
     item.brand, item.model, item.mode,
     ...(item.aliases || []),
-    ...(item.keywords || [])
+    ...(item.keywords || []),
+    ...(item.tags || [])
   ].map(v => normalizeStr(v||''));
   const hay = hayParts.join(' ');
   const q   = normalizeStr(qRaw);
@@ -90,7 +94,6 @@ function matchesQuery(item, qRaw){
 }
 
 /* ---------- Storage helpers (state.js fallback naar localStorage) ---------- */
-function storageHas(){ try { return !!(state && state.has && state.has('mylib')); } catch { return false; } }
 function storageGet(){
   try {
     if (state && state.get) {
@@ -119,6 +122,17 @@ function storageSet(arr){
 function saveLibrary(){ storageSet(fixtures); }
 function loadLibrary(){
   fixtures = storageGet().map(f => ({...f, _stableId: f._stableId || stableId(f)}));
+}
+
+/* ---------- Sets storage ---------- */
+function loadSets(){
+  try {
+    const raw = localStorage.getItem(LS_KEY_SETS);
+    sets = raw ? (JSON.parse(raw)||{}) : {};
+  } catch { sets = {}; }
+}
+function saveSets(){
+  try { localStorage.setItem(LS_KEY_SETS, JSON.stringify(sets)); } catch {}
 }
 
 /* ---------- Sorting ---------- */
@@ -152,9 +166,23 @@ function ensureBulkToolbar(){
       <button id="lib-sel-all" class="btn">Alles selecteren</button>
       <button id="lib-sel-clear" class="btn btn-ghost">Selectie wissen</button>
       <button id="lib-exp-sel" class="btn">Export selectie</button>
+      <button id="lib-exp-all" class="btn btn-ghost">Export alles</button>
       <button id="lib-del-sel" class="btn btn-warn">Verwijder selectie</button>
       <button id="lib-del-all" class="btn btn-danger">Alles verwijderen</button>
       <div class="spacer"></div>
+      <button id="lib-to-addressing" class="btn">Naar Bulk Addressing</button>
+      <div class="spacer"></div>
+      <div class="row g6" id="lib-sets-wrap">
+        <label class="field inline">
+          <span class="muted">Set</span>
+          <select id="lib-set-filter" class="input">
+            <option value="">Alle</option>
+          </select>
+        </label>
+        <button id="lib-set-new" class="btn btn-ghost">Nieuwe set</button>
+        <button id="lib-set-add" class="btn btn-ghost">Selectie → set</button>
+        <button id="lib-set-remove" class="btn btn-ghost">Selectie uit set</button>
+      </div>
       <label class="field inline">
         <span class="muted">Sort</span>
         <select id="lib-sort" class="input">
@@ -163,18 +191,26 @@ function ensureBulkToolbar(){
         </select>
       </label>
       <button id="lib-density" class="btn btn-ghost" title="Weergavedichtheid">Comfortabel</button>
+      <label class="field inline" id="lib-import-wrap">
+        <span class="muted">Import</span>
+        <input id="lib-import" type="file" class="input" multiple
+               accept=".json,.gdtf,application/json,application/octet-stream" />
+      </label>
     `;
     host.prepend(bar);
 
     $('#lib-sel-all')  ?.addEventListener('click', () => { fixtures.forEach(f => selectedIds.add(f._stableId)); scheduleRender(); });
     $('#lib-sel-clear')?.addEventListener('click', () => { selectedIds.clear(); scheduleRender(); });
     $('#lib-exp-sel')  ?.addEventListener('click', handleExportSelected);
+    $('#lib-exp-all')  ?.addEventListener('click', handleExportAll);
     $('#lib-del-sel')  ?.addEventListener('click', handleDeleteSelected);
     $('#lib-del-all')  ?.addEventListener('click', handleDeleteAll);
+    $('#lib-to-addressing')?.addEventListener('click', goToAddressing);
     $('#lib-sort')     ?.addEventListener('change', (e) => {
       localStorage.setItem(LS_KEY_SORT, e.target.value);
       scheduleRender();
     });
+    $('#lib-import')?.addEventListener('change', onImportFiles);
 
     // init sort UI
     const pref = localStorage.getItem(LS_KEY_SORT) || 'brand';
@@ -194,6 +230,23 @@ function ensureBulkToolbar(){
         scheduleRender(true);
       });
     }
+
+    // init sets UI
+    refreshSetFilter();
+    $('#lib-set-new')   ?.addEventListener('click', handleNewSet);
+    $('#lib-set-add')   ?.addEventListener('click', () => modifySet('add'));
+    $('#lib-set-remove')?.addEventListener('click', () => modifySet('remove'));
+    $('#lib-set-filter')?.addEventListener('change', () => scheduleRender(true));
+
+    // drag & drop import op toolbar (best-effort)
+    const dropHost = host;
+    dropHost.addEventListener('dragover', (e) => { e.preventDefault(); dropHost.classList.add('drag'); });
+    dropHost.addEventListener('dragleave', () => dropHost.classList.remove('drag'));
+    dropHost.addEventListener('drop', (e) => {
+      e.preventDefault(); dropHost.classList.remove('drag');
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) importFiles(files);
+    });
   }
 }
 
@@ -241,10 +294,16 @@ function renderLibrary(){
   ensureBulkToolbar();
 
   const sortPref = (localStorage.getItem(LS_KEY_SORT) || 'brand');
+  const setFilter = ($('#lib-set-filter')?.value || '').trim();
   const rows = fixtures
     .slice()
     .sort(sortPref === 'recent' ? sortByRecent : sortByBrandModel)
-    .filter(x => matchesQuery(x, qRaw));
+    .filter(x => matchesQuery(x, qRaw))
+    .filter(x => {
+      if (!setFilter) return true;
+      const ids = new Set(sets[setFilter] || []);
+      return ids.has(x._stableId);
+    });
 
   if (rows.length === 0){
     empty.style.display = '';
@@ -303,9 +362,23 @@ function renderLibrary(){
       }
     });
   });
+  // tag buttons per render
+  $$('.lib-tag').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      const fx = fixtures.find(f => f._stableId === id);
+      if (!fx) return;
+      const cur = (fx.tags||[]).join(', ');
+      const val = prompt('Tags (komma-gescheiden):', cur);
+      if (val === null) return;
+      fx.tags = val.split(',').map(s=>s.trim()).filter(Boolean);
+      saveLibrary();
+      scheduleRender();
+    });
+  });
 }
 
-/* ---------- Row renderer (badges + swipe) ---------- */
+/* ---------- Row renderer (badges + swipe + tags) ---------- */
 function renderRow(fx, virtual=false){
   const li = document.createElement('div');
   li.className = 'row card-row';
@@ -337,9 +410,14 @@ function renderRow(fx, virtual=false){
         <div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
           ${chips.join(' ')}
         </div>
+        ${Array.isArray(fx.tags) && fx.tags.length ? `
+          <div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">
+            ${fx.tags.map(t=>`<span class="chip">${escapeHTML(t)}</span>`).join(' ')}
+          </div>` : ''}
       </div>
     </label>
     <div class="row g6">
+      <button class="btn btn-ghost lib-tag" data-id="${fx._stableId}" title="Tags">🏷️</button>
       <button class="btn btn-ghost lib-del" data-id="${fx._stableId}" title="Verwijderen">🗑️</button>
     </div>
   `;
@@ -441,6 +519,12 @@ function handleExportSelected(){
   const blob = new Blob([JSON.stringify(arr, null, 2)], {type:'application/json'});
   dlBlob(blob, `my-library-selection-${Date.now()}.json`);
 }
+function handleExportAll(){
+  if (!fixtures.length){ toast('Geen items om te exporteren'); return; }
+  const arr = fixtures.map(({_stableId, ...rest}) => rest);
+  const blob = new Blob([JSON.stringify(arr, null, 2)], {type:'application/json'});
+  dlBlob(blob, `my-library-all-${Date.now()}.json`);
+}
 function handleDeleteSelected(){
   if (!selectedIds.size){ toast('Geen selectie om te verwijderen'); return; }
   if (!confirm('Weet je zeker dat je de geselecteerde fixtures wilt verwijderen?')) return;
@@ -458,6 +542,108 @@ function handleDeleteAll(){
   saveLibrary();
   scheduleRender();
   toast('Bibliotheek geleegd');
+}
+
+/* ---------- Sets handlers ---------- */
+function refreshSetFilter(){
+  const sel = $('#lib-set-filter');
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = `<option value="">Alle</option>` + Object.keys(sets).sort().map(n=>`<option value="${escapeHTML(n)}">${escapeHTML(n)}</option>`).join('');
+  if (val) sel.value = val;
+}
+function handleNewSet(){
+  const name = prompt('Naam van de nieuwe set:');
+  if (!name) return;
+  if (sets[name]){ toast('Set bestaat al'); return; }
+  sets[name] = [];
+  saveSets();
+  refreshSetFilter();
+  $('#lib-set-filter').value = name;
+  scheduleRender(true);
+}
+function modifySet(kind){
+  const sel = $('#lib-set-filter');
+  const name = sel?.value || '';
+  if (!name){ toast('Kies eerst een set in de filter'); return; }
+  const ids = sets[name] ? new Set(sets[name]) : new Set();
+  const picked = Array.from(selectedIds);
+  if (!picked.length){ toast('Geen selectie'); return; }
+  if (kind === 'add'){
+    picked.forEach(id => ids.add(id));
+  } else if (kind === 'remove'){
+    picked.forEach(id => ids.delete(id));
+  }
+  sets[name] = Array.from(ids);
+  saveSets();
+  scheduleRender(true);
+}
+
+/* ---------- Import (.json / .gdtf) ---------- */
+function onImportFiles(e){
+  const files = Array.from(e.currentTarget.files || []);
+  if (!files.length) return;
+  importFiles(files);
+  e.currentTarget.value = '';
+}
+function importFiles(files){
+  let jsons = [];
+  let gdtfs = [];
+  for (const f of files){
+    const ext = (f.name.split('.').pop()||'').toLowerCase();
+    if (ext === 'json') jsons.push(f);
+    else if (ext === 'gdtf') gdtfs.push(f);
+  }
+  if (jsons.length){
+    jsons.forEach(f => f.text().then(txt => {
+      try { importFixtures(JSON.parse(txt)); }
+      catch { toast(`Kon ${f.name} niet lezen`); }
+    }));
+  }
+  if (gdtfs.length){
+    // Zonder JSZip lezen we best-effort de bestandsnaam: "Brand@Model.gdtf" of "Brand_Model.gdtf"
+    gdtfs.forEach(f => {
+      try {
+        const base = f.name.replace(/\.gdtf$/i,'');
+        const guess = base.split('@');
+        let brand='', model='';
+        if (guess.length === 2){ brand = guess[0]; model = guess[1]; }
+        else {
+          const u = base.split(/[_\-]+/);
+          brand = u[0] || '';
+          model = u.slice(1).join(' ');
+        }
+        const fx = {
+          source: 'gdtf-file',
+          id: base,
+          brand, model,
+          mode: '', channels: undefined,
+          fileName: f.name
+        };
+        addFixtures([fx]);
+      } catch { /* ignore */ }
+    });
+    toast(`${gdtfs.length} GDTF-bestand${gdtfs.length>1?'en':''} toegevoegd (best-effort metadata)`);
+  }
+}
+
+/* ---------- Naar Bulk Addressing ---------- */
+function goToAddressing(){
+  const picked = fixtures.filter(f => selectedIds.has(f._stableId))
+    .map(({_stableId, ...rest}) => ({...rest, qty: 1}));
+  if (!picked.length){
+    const proceedAll = confirm('Geen selectie gevonden. Alles doorzetten naar Bulk Addressing?');
+    if (!proceedAll) return;
+    picked.push(...fixtures.map(({_stableId, ...rest}) => ({...rest, qty: 1})));
+  }
+  try {
+    if (state && state.set) state.set('addressing.selection', picked);
+    else localStorage.setItem(LS_KEY_ADDRSEL, JSON.stringify(picked));
+  } catch {
+    localStorage.setItem(LS_KEY_ADDRSEL, JSON.stringify(picked));
+  }
+  try { window.location.href = '/addressing.html?from=lib=1'; }
+  catch { /* noop */ }
 }
 
 /* ---------- Public API ---------- */
@@ -506,6 +692,7 @@ function scheduleRender(force=false){
 /* ---------- Init ---------- */
 function init(){
   loadLibrary();
+  loadSets();
   $('#lib-search')?.addEventListener('input', (e) => {
     if (searchDebounce) clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
